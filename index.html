@@ -2,18 +2,37 @@
 <html lang="en">
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>~wishyy~</title>
-    <link rel="stylesheet" href="styles.css?v=20260519-1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>wishyy</title>
+    <link rel="stylesheet" href="styles.css?v=20260519-2">
   </head>
   <body>
     <main class="app-shell">
 
-      <!-- ── THEME BAR ── -->
-      <div class="theme-bar">
-        <select id="themeSelect" class="theme-select" aria-label="Choose theme"></select>
-        <button id="modeToggle" class="mode-toggle" type="button">dark mode</button>
-        <button id="themeSelect" class="theme-select" type="button">theme</button>
+      <!-- ── UI CONTROLS (top right) ── -->
+      <div class="ui-controls">
+        <!-- Dark/light toggle — placeholder until UIverse component is pasted -->
+        <label class="mode-toggle-wrap" aria-label="Toggle dark mode">
+          <input type="checkbox" id="modeToggle" class="mode-toggle-input">
+          <span class="mode-toggle-track">
+            <span class="mode-toggle-thumb"></span>
+            <span class="mode-toggle-icons">
+              <span class="icon-sun">&#9728;</span>
+              <span class="icon-moon">&#9790;</span>
+            </span>
+          </span>
+        </label>
+
+        <!-- Themes button — UIverse by MuhammadHasann -->
+        <button id="themesButton" class="themes-btn" type="button">
+          Themes
+          <div class="star-1"><svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision;text-rendering:geometricPrecision;image-rendering:optimizeQuality;fill-rule:evenodd;clip-rule:evenodd" viewBox="0 0 784.11 815.53"><g><path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path></g></svg></div>
+          <div class="star-2"><svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision;text-rendering:geometricPrecision;image-rendering:optimizeQuality;fill-rule:evenodd;clip-rule:evenodd" viewBox="0 0 784.11 815.53"><g><path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path></g></svg></div>
+          <div class="star-3"><svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision;text-rendering:geometricPrecision;image-rendering:optimizeQuality;fill-rule:evenodd;clip-rule:evenodd" viewBox="0 0 784.11 815.53"><g><path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path></g></svg></div>
+          <div class="star-4"><svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision;text-rendering:geometricPrecision;image-rendering:optimizeQuality;fill-rule:evenodd;clip-rule:evenodd" viewBox="0 0 784.11 815.53"><g><path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path></g></svg></div>
+          <div class="star-5"><svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision;text-rendering:geometricPrecision;image-rendering:optimizeQuality;fill-rule:evenodd;clip-rule:evenodd" viewBox="0 0 784.11 815.53"><g><path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path></g></svg></div>
+          <div class="star-6"><svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision;text-rendering:geometricPrecision;image-rendering:optimizeQuality;fill-rule:evenodd;clip-rule:evenodd" viewBox="0 0 784.11 815.53"><g><path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path></g></svg></div>
+        </button>
       </div>
 
       <!-- ── WELCOME SCREEN ── -->
@@ -22,7 +41,7 @@
           <p class="eyebrow">Birthday and Christmas ideas</p>
           <div class="site-wordmark">
             <span class="tilde">~</span>
-            <h1>Wishy Whimsy</h1>
+            <h1>wishyy</h1>
             <span class="tilde">~</span>
           </div>
           <p class="lead">
@@ -65,7 +84,7 @@
               <input id="newPin" inputmode="numeric" minlength="4" maxlength="12" placeholder="4 numbers or more" required>
               <span class="field-help">Choose a PIN you will remember or write it down. It cannot be recovered after you set it.</span>
             </label>
-            <button class="primary-button" type="submit">Enter the list ✨</button>
+            <button class="primary-button" type="submit">Create account</button>
           </form>
 
           <form id="returnForm" class="auth-form hidden">
@@ -73,7 +92,7 @@
               Your PIN
               <input id="returnPin" inputmode="numeric" minlength="4" maxlength="12" placeholder="Enter your PIN" required>
             </label>
-            <button class="primary-button" type="submit">Open my account ✨</button>
+            <button class="primary-button" type="submit">Sign in</button>
           </form>
 
           <p id="authMessage" class="message"></p>
@@ -84,7 +103,7 @@
       <section id="giftScreen" class="hidden">
         <header class="topbar">
           <div>
-            <p class="eyebrow">~ Wishy Whimsy ~</p>
+            <p class="eyebrow">~ wishyy ~</p>
             <h2 id="helloText">Welcome</h2>
           </div>
           <div class="topbar-actions">
@@ -144,7 +163,7 @@
           <p id="buyDialogText"></p>
           <div class="modal-actions">
             <button value="cancel" class="ghost-button">Cancel</button>
-            <button id="confirmBoughtButton" value="confirm" class="primary-button">Yes, I bought it ✨</button>
+            <button id="confirmBoughtButton" value="confirm" class="primary-button">Yes, I bought it</button>
           </div>
         </form>
       </dialog>
@@ -235,7 +254,6 @@
 
     </main>
 
-    <!-- ── FOOTER ── -->
     <footer class="site-footer">
       <p>© 2026 Butterscotch Development. All rights reserved.</p>
     </footer>
@@ -243,8 +261,8 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
-    <script src="firebase-config.js?v=20260519-1"></script>
-    <script src="themes.js?v=20260519-1"></script>
-    <script src="app.js?v=20260519-1"></script>
+    <script src="firebase-config.js?v=20260519-2"></script>
+    <script src="themes.js?v=20260519-2"></script>
+    <script src="app.js?v=20260519-2"></script>
   </body>
 </html>
