@@ -1,746 +1,814 @@
-const STORAGE_KEY = "giftListApp.shared.v2";
-const CURRENT_USER_KEY = "giftListApp.currentUserHash.v1";
+/* =====================================================
+   WISHYY — app.js — Phase 2
+   Multi-family, multi-list gift platform
+   ===================================================== */
+'use strict';
 
-const sampleData = {
-  interests:
-    "Right now I am interested in cozy room decor, art supplies, games, useful desk stuff, favorite snacks, and anything that feels personal.",
-  users: [],
-  gifts: [
-    {
-      id: crypto.randomUUID(),
-      name: "Dual-tip art marker set",
-      price: 24.99,
-      store: "Amazon",
-      url: "https://www.amazon.com/",
-      image:
-        "https://images.unsplash.com/photo-1513364776144-60967b0f800f?auto=format&fit=crop&w=900&q=80",
-      note: "Any colorful marker set is fine. Alcohol markers are best.",
-      bought: false,
-      boughtBy: "",
-      boughtByHash: "",
-      addedAt: Date.now() - 5000
-    },
-    {
-      id: crypto.randomUUID(),
-      name: "Soft throw blanket",
-      price: 32,
-      store: "Target",
-      url: "https://www.target.com/",
-      image:
-        "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?auto=format&fit=crop&w=900&q=80",
-      note: "Neutral colors or sage green would be great.",
-      bought: false,
-      boughtBy: "",
-      boughtByHash: "",
-      addedAt: Date.now() - 4000
-    },
-    {
-      id: crypto.randomUUID(),
-      name: "Bookstore gift card",
-      price: 15,
-      store: "Local bookstore",
-      url: "https://bookshop.org/",
-      image:
-        "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?auto=format&fit=crop&w=900&q=80",
-      note: "Any amount works.",
-      bought: false,
-      boughtBy: "",
-      boughtByHash: "",
-      addedAt: Date.now() - 3000
-    }
-  ]
+// ── STORAGE KEYS ──────────────────────────────────────────────
+const LS = {
+  userId:       'wishyy.userId',
+  userName:     'wishyy.userName',
+  userPin:      'wishyy.userPin',
+  familyCode:   'wishyy.familyCode',
+  ownerSession: 'wishyy.ownerSession',
 };
 
-let state = loadLocalState();
-let currentUserHash = localStorage.getItem(CURRENT_USER_KEY) || "";
-let activeGiftId = "";
-let database = null;
+// ── STATE ─────────────────────────────────────────────────────
+let db   = null;
 let auth = null;
-let rootRef = null;
-let legacyStateRef = null;
-let firebaseReady = false;
-let hasLoadedRemote = false;
-let ownerSignedIn = false;
-let remoteNeedsOwnerSetup = false;
-let editingGiftId = "";
+let currentUser   = null; // { id, name, pin }
+let currentFamily = null; // { code, name, description, adminUserId }
+let currentList   = null; // { id, name, ownerUid, ownerEmail, ... }
+let giftsData     = {};
+let giftsRef      = null;
+let ownerActive   = false;
 
-const els = {
-  welcomeScreen: document.querySelector("#welcomeScreen"),
-  giftScreen: document.querySelector("#giftScreen"),
-  createTab: document.querySelector("#createTab"),
-  returnTab: document.querySelector("#returnTab"),
-  createForm: document.querySelector("#createForm"),
-  returnForm: document.querySelector("#returnForm"),
-  authMessage: document.querySelector("#authMessage"),
-  newName: document.querySelector("#newName"),
-  newRelation: document.querySelector("#newRelation"),
-  newPin: document.querySelector("#newPin"),
-  returnPin: document.querySelector("#returnPin"),
-  helloText: document.querySelector("#helloText"),
-  syncStatus: document.querySelector("#syncStatus"),
-  interestText: document.querySelector("#interestText"),
-  searchInput: document.querySelector("#searchInput"),
-  sortSelect: document.querySelector("#sortSelect"),
-  filterSelect: document.querySelector("#filterSelect"),
-  resultCount: document.querySelector("#resultCount"),
-  giftList: document.querySelector("#giftList"),
-  buyDialog: document.querySelector("#buyDialog"),
-  buyDialogText: document.querySelector("#buyDialogText"),
-  confirmBoughtButton: document.querySelector("#confirmBoughtButton"),
-  signOutButton: document.querySelector("#signOutButton"),
-  ownerButton: document.querySelector("#ownerButton"),
-  ownerDialog: document.querySelector("#ownerDialog"),
-  ownerUnlockForm: document.querySelector("#ownerUnlockForm"),
-  ownerCloseButton: document.querySelector("#ownerCloseButton"),
-  ownerDoneButton: document.querySelector("#ownerDoneButton"),
-  ownerEmailInput: document.querySelector("#ownerEmailInput"),
-  ownerPasswordInput: document.querySelector("#ownerPasswordInput"),
-  ownerMessage: document.querySelector("#ownerMessage"),
-  ownerPanel: document.querySelector("#ownerPanel"),
-  ownerInterest: document.querySelector("#ownerInterest"),
-  saveInterestButton: document.querySelector("#saveInterestButton"),
-  ownerUsersList: document.querySelector("#ownerUsersList"),
-  ownerGiftsList: document.querySelector("#ownerGiftsList"),
-  giftForm: document.querySelector("#giftForm"),
-  giftName: document.querySelector("#giftName"),
-  giftPrice: document.querySelector("#giftPrice"),
-  giftStore: document.querySelector("#giftStore"),
-  giftUrl: document.querySelector("#giftUrl"),
-  giftImage: document.querySelector("#giftImage"),
-  giftNote: document.querySelector("#giftNote"),
-  giftSubmitButton: document.querySelector("#giftSubmitButton"),
-  cancelEditButton: document.querySelector("#cancelEditButton")
-};
-
-function cloneSampleData() {
-  return structuredClone(sampleData);
+// ── UTILS ─────────────────────────────────────────────────────
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
 
-function cleanState(value) {
-  const fallback = cloneSampleData();
-  return {
-    interests: typeof value?.interests === "string" ? value.interests : fallback.interests,
-    users: normalizeCollection(value?.users, fallback.users),
-    gifts: normalizeCollection(value?.gifts, fallback.gifts)
-  };
+function makeFamilyCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let c = '';
+  for (let i = 0; i < 4; i++) c += chars[Math.floor(Math.random() * chars.length)];
+  return c;
 }
 
-function normalizeCollection(value, fallback) {
-  if (Array.isArray(value)) return value.filter(Boolean);
-  if (value && typeof value === "object") return Object.values(value).filter(Boolean);
-  return fallback;
+function encodePin(p) {
+  try { return btoa(unescape(encodeURIComponent(String(p)))); } catch { return btoa(p); }
+}
+function decodePin(p) {
+  try { return decodeURIComponent(escape(atob(p))); } catch { return '??'; }
+}
+function pinMatches(entered, stored) {
+  return encodePin(entered) === stored;
 }
 
-function loadLocalState() {
-  const saved = localStorage.getItem(STORAGE_KEY);
-  if (!saved) return cloneSampleData();
+function $(id) { return document.getElementById(id); }
 
+function showScreen(id) {
+  ['welcomeScreen','noFamilyScreen','familyScreen','giftScreen'].forEach(s => {
+    const el = $(s);
+    if (el) el.classList.toggle('hidden', s !== id);
+  });
+}
+
+function setMsg(elId, text, ok = false) {
+  const el = $(elId);
+  if (!el) return;
+  el.textContent = text;
+  el.style.color = ok ? 'var(--accent-strong)' : 'var(--warning)';
+}
+
+function fmtPrice(p) {
+  if (p === '' || p === null || p === undefined) return '';
+  const n = parseFloat(p);
+  return isNaN(n) ? '' : '$' + n.toFixed(2);
+}
+
+// ── OWNER SESSION ─────────────────────────────────────────────
+function saveOwnerSession(listId) {
+  const exp = Date.now() + 24 * 3600 * 1000;
+  localStorage.setItem(LS.ownerSession, JSON.stringify({ listId, exp }));
+  ownerActive = true;
+}
+
+function getOwnerSession() {
   try {
-    return cleanState(JSON.parse(saved));
-  } catch {
-    return cloneSampleData();
-  }
+    const s = JSON.parse(localStorage.getItem(LS.ownerSession) || 'null');
+    if (s && s.exp > Date.now()) return s;
+    localStorage.removeItem(LS.ownerSession);
+  } catch {}
+  return null;
 }
 
-function saveLocalState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+function clearOwnerSession() {
+  localStorage.removeItem(LS.ownerSession);
+  ownerActive = false;
+  if (auth) auth.signOut().catch(() => {});
 }
 
-async function saveState() {
-  saveLocalState();
-  if (!firebaseReady || !rootRef || !ownerSignedIn) return;
-  await rootRef.set(toRemoteState(state));
-}
-
-function hasFirebaseConfig() {
-  const config = window.GIFT_LIST_FIREBASE_CONFIG;
-  return Boolean(
-    config &&
-      config.apiKey &&
-      config.projectId &&
-      config.databaseURL &&
-      !String(config.apiKey).includes("PASTE_")
-  );
-}
-
-function setSyncStatus(text, mode) {
-  els.syncStatus.textContent = text;
-  els.syncStatus.dataset.mode = mode;
-}
-
-function startFirebase() {
-  if (!hasFirebaseConfig() || !window.firebase) {
-    setSyncStatus("Offline copy", "local");
-    return;
-  }
-
+// ── FIREBASE ─────────────────────────────────────────────────
+function initFirebase() {
   try {
-    firebase.initializeApp(window.GIFT_LIST_FIREBASE_CONFIG);
+    if (typeof firebase === 'undefined') return false;
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    db   = firebase.database();
     auth = firebase.auth();
-    database = firebase.database();
-    rootRef = database.ref("giftList");
-    legacyStateRef = database.ref("giftListSharedState");
-    firebaseReady = true;
-    setSyncStatus("Connecting", "connecting");
-
-    rootRef.on(
-      "value",
-      async (snapshot) => {
-        const remoteState = snapshot.val();
-
-        if (!remoteState) {
-          remoteNeedsOwnerSetup = true;
-
-          if (auth?.currentUser) {
-            const legacySnapshot = await legacyStateRef.get();
-            const legacyState = legacySnapshot.val();
-            if (legacyState) {
-              state = cleanState(legacyState);
-            }
-            await rootRef.set(toRemoteState(state));
-            return;
-          }
-
-          hasLoadedRemote = true;
-          saveLocalState();
-          setSyncStatus("Owner setup needed", "connecting");
-          render();
-          return;
-        }
-
-        remoteNeedsOwnerSetup = false;
-        state = cleanState(remoteState);
-        hasLoadedRemote = true;
-        saveLocalState();
-        setSyncStatus("Shared online", "online");
-
-        if (currentUser()) {
-          enterApp();
-        } else if (!els.giftScreen.classList.contains("hidden")) {
-          signOut();
-        } else {
-          renderOwnerLists();
-        }
-      },
-      () => {
-        firebaseReady = false;
-        setSyncStatus("Offline copy", "local");
-      }
-    );
-
-    auth.onAuthStateChanged((user) => {
-      ownerSignedIn = Boolean(user);
-      if (ownerSignedIn && remoteNeedsOwnerSetup) {
-        saveState();
-      }
-      if (ownerSignedIn && els.ownerDialog.open) {
-        showOwnerPanel();
-      }
-    });
-  } catch {
-    firebaseReady = false;
-    setSyncStatus("Offline copy", "local");
+    return true;
+  } catch (e) {
+    console.warn('Firebase init failed:', e);
+    return false;
   }
 }
 
-function toRemoteState(value) {
-  return {
-    interests: value.interests,
-    users: Object.fromEntries(value.users.map((user) => [user.pinHash, user])),
-    gifts: Object.fromEntries(value.gifts.map((gift) => [gift.id, gift]))
-  };
+function setSyncStatus(mode, label) {
+  const el = $('syncStatus');
+  if (!el) return;
+  el.textContent = label;
+  el.dataset.mode = mode;
 }
 
-function money(value) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD"
-  }).format(Number(value || 0));
-}
+// ── BOOT ──────────────────────────────────────────────────────
+async function boot() {
+  initFirebase();
 
-async function hashPin(pin) {
-  const bytes = new TextEncoder().encode(`gift-list-pin:${pin}`);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(digest))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
+  const savedId   = localStorage.getItem(LS.userId);
+  const savedName = localStorage.getItem(LS.userName);
+  const savedPin  = localStorage.getItem(LS.userPin);
+  const savedCode = localStorage.getItem(LS.familyCode);
 
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-function currentUser() {
-  return state.users.find((user) => user.pinHash === currentUserHash);
-}
-
-function showCreateMode() {
-  els.createTab.classList.add("active");
-  els.returnTab.classList.remove("active");
-  els.createForm.classList.remove("hidden");
-  els.returnForm.classList.add("hidden");
-  els.authMessage.textContent = "";
-}
-
-function showReturnMode() {
-  els.returnTab.classList.add("active");
-  els.createTab.classList.remove("active");
-  els.returnForm.classList.remove("hidden");
-  els.createForm.classList.add("hidden");
-  els.authMessage.textContent = "";
-}
-
-function enterApp() {
-  const user = currentUser();
-  if (!user) return;
-
-  els.welcomeScreen.classList.add("hidden");
-  els.giftScreen.classList.remove("hidden");
-  els.helloText.textContent = `Hi, ${user.name}`;
-  render();
-}
-
-function signOut() {
-  currentUserHash = "";
-  localStorage.removeItem(CURRENT_USER_KEY);
-  els.giftScreen.classList.add("hidden");
-  els.welcomeScreen.classList.remove("hidden");
-  els.returnPin.value = "";
-}
-
-function giftMatchesSearch(gift, search) {
-  const haystack = [
-    gift.name,
-    gift.store,
-    gift.note,
-    money(gift.price)
-  ]
-    .join(" ")
-    .toLowerCase();
-
-  return haystack.includes(search.toLowerCase().trim());
-}
-
-function sortedGifts() {
-  const search = els.searchInput.value;
-  const filter = els.filterSelect.value;
-  const sort = els.sortSelect.value;
-
-  return state.gifts
-    .filter((gift) => {
-      if (filter === "available" && gift.bought) return false;
-      if (filter === "bought" && !gift.bought) return false;
-      return giftMatchesSearch(gift, search);
-    })
-    .sort((a, b) => {
-      if (sort === "priceLow") return a.price - b.price;
-      if (sort === "priceHigh") return b.price - a.price;
-      if (sort === "alpha") return a.name.localeCompare(b.name);
-      return b.addedAt - a.addedAt;
-    });
-}
-
-function render() {
-  els.interestText.textContent = state.interests;
-  const gifts = sortedGifts();
-  els.resultCount.textContent = `${gifts.length} gift${gifts.length === 1 ? "" : "s"} shown`;
-  els.giftList.innerHTML = "";
-
-  if (!gifts.length) {
-    const empty = document.createElement("p");
-    empty.className = "meta";
-    empty.textContent = "No gifts match that search or filter.";
-    els.giftList.append(empty);
+  if (savedId && savedName && savedPin) {
+    currentUser = { id: savedId, name: savedName, pin: savedPin };
+    if (savedCode) {
+      await goToFamily(savedCode);
+      return;
+    }
+    showScreen('noFamilyScreen');
+    bindNoFamilyScreen();
     return;
   }
 
-  gifts.forEach((gift) => {
-    const card = document.createElement("article");
-    card.className = `gift-card${gift.bought ? " bought" : ""}`;
+  showScreen('welcomeScreen');
+  bindWelcomeScreen();
+}
 
-    const preview = gift.image
-      ? `<img src="${escapeHtml(gift.image)}" alt="${escapeHtml(gift.name)} preview" loading="lazy">`
-      : `<div class="preview-fallback">No picture yet</div>`;
+// ── WELCOME SCREEN ────────────────────────────────────────────
+function bindWelcomeScreen() {
+  $('createTab').onclick = () => switchTab('create');
+  $('returnTab').onclick = () => switchTab('return');
+  $('createForm').onsubmit = onCreateAccount;
+  $('returnForm').onsubmit = onReturnAccount;
+}
 
-    const title = gift.bought
-      ? `<span class="gift-title disabled">${escapeHtml(gift.name)}</span>`
-      : `<span class="gift-title-wrap"><a class="gift-title" href="${escapeHtml(gift.url)}" target="_blank" rel="noopener">${escapeHtml(gift.name)}</a><span class="preview" aria-hidden="true">${preview}</span></span>`;
+function switchTab(tab) {
+  $('createTab').classList.toggle('active', tab === 'create');
+  $('returnTab').classList.toggle('active', tab === 'return');
+  $('createForm').classList.toggle('hidden', tab !== 'create');
+  $('returnForm').classList.toggle('hidden', tab !== 'return');
+  setMsg('authMessage', '');
+}
+
+async function onCreateAccount(e) {
+  e.preventDefault();
+  const name   = $('newName').value.trim();
+  const pin    = $('newPin').value.trim();
+  const code   = $('newFamilyCode').value.trim().toUpperCase();
+  const btn    = e.target.querySelector('button[type=submit]');
+  const encodedPin = encodePin(pin);
+
+  if (!name || !pin) return;
+  btn.disabled = true;
+  btn.textContent = 'Creating...';
+
+  const userId = uid();
+  currentUser  = { id: userId, name, pin: encodedPin };
+
+  if (db) {
+    await db.ref(`users/${userId}`).set({ name, pin: encodedPin, createdAt: Date.now() });
+  }
+  localStorage.setItem(LS.userId,   userId);
+  localStorage.setItem(LS.userName, name);
+  localStorage.setItem(LS.userPin,  encodedPin);
+
+  btn.disabled = false;
+  btn.textContent = 'Create account';
+
+  if (code) {
+    await joinFamily(code, 'authMessage');
+  } else {
+    showScreen('noFamilyScreen');
+    bindNoFamilyScreen();
+  }
+}
+
+async function onReturnAccount(e) {
+  e.preventDefault();
+  const pin  = $('returnPin').value.trim();
+  const code = $('returnFamilyCode').value.trim().toUpperCase();
+
+  const savedPin = localStorage.getItem(LS.userPin);
+  if (!savedPin) { setMsg('authMessage', 'No account found. Create one first.'); return; }
+  if (!pinMatches(pin, savedPin)) { setMsg('authMessage', 'Incorrect PIN.'); return; }
+
+  currentUser = {
+    id:   localStorage.getItem(LS.userId),
+    name: localStorage.getItem(LS.userName),
+    pin:  savedPin,
+  };
+
+  if (code) {
+    await joinFamily(code, 'authMessage');
+  } else {
+    const saved = localStorage.getItem(LS.familyCode);
+    if (saved) { await goToFamily(saved); }
+    else        { showScreen('noFamilyScreen'); bindNoFamilyScreen(); }
+  }
+}
+
+// ── NO-FAMILY SCREEN ──────────────────────────────────────────
+function bindNoFamilyScreen() {
+  // Clone to avoid double-binding on re-visits
+  replaceListener('joinFamilyForm', 'submit', async e => {
+    e.preventDefault();
+    const code = $('joinFamilyCode').value.trim().toUpperCase();
+    if (!code) return;
+    await joinFamily(code, 'noFamilyMessage');
+  });
+
+  replaceListener('createFamilyBtn', 'click', () => {
+    resetCreateDialog();
+    $('createFamilyDialog').showModal();
+  });
+
+  replaceListener('nfSignOut', 'click', hardSignOut);
+}
+
+function replaceListener(id, event, fn) {
+  const el = $(id);
+  if (!el) return;
+  const clone = el.cloneNode(true);
+  el.replaceWith(clone);
+  clone.addEventListener(event, fn);
+}
+
+async function joinFamily(code, msgId) {
+  if (!code) { setMsg(msgId, 'Please enter a family code.'); return; }
+  if (db) {
+    const snap = await db.ref(`families/${code}`).get();
+    if (!snap.exists()) { setMsg(msgId, 'Family code not found. Check the code and try again.'); return; }
+    await db.ref(`userFamilies/${currentUser.id}/${code}`).set({ joinedAt: Date.now() });
+    await db.ref(`familyMembers/${code}/${currentUser.id}`).set({ name: currentUser.name, joinedAt: Date.now() });
+  }
+  localStorage.setItem(LS.familyCode, code);
+  await goToFamily(code);
+}
+
+// ── CREATE FAMILY DIALOG ──────────────────────────────────────
+function bindCreateFamilyDialog() {
+  $('createFamilyForm').onsubmit = e => {
+    e.preventDefault();
+    const name = $('cfName').value.trim();
+    if (!name) return;
+    $('cfStep1').classList.add('hidden');
+    $('cfStep2').classList.remove('hidden');
+    $('cfFamilyNameDisplay').textContent = '\u201c' + name + '\u201d';
+  };
+
+  $('createListForm').onsubmit = async e => {
+    e.preventDefault();
+    const familyName = $('cfName').value.trim();
+    const familyDesc = $('cfDescription').value.trim();
+    const listName   = $('clListName').value.trim();
+    const email      = $('clEmail').value.trim();
+    const password   = $('clPassword').value.trim();
+    const msg        = $('createListMessage');
+
+    if (password.length < 6) { msg.textContent = 'Password must be at least 6 characters.'; return; }
+
+    msg.textContent = 'Creating your family...';
+
+    try {
+      let ownerUid = null;
+      if (auth) {
+        const cred = await auth.createUserWithEmailAndPassword(email, password);
+        ownerUid = cred.user.uid;
+        await auth.signOut();
+      }
+
+      let code = makeFamilyCode();
+      if (db) {
+        while ((await db.ref(`families/${code}`).get()).exists()) code = makeFamilyCode();
+
+        const listId = db.ref('lists').push().key;
+
+        await db.ref(`families/${code}`).set({
+          name: familyName,
+          description: familyDesc,
+          disclaimer: 'All of the lists in this family could have items on them that do not link to big sellers, companies, or brands like Amazon, Walmart, or Etsy. The responsibility is upon the owner of the list to view, examine, and determine if the links are safe to buy from. Any issues that come about from the used links do not fall back to the developer of the site',
+          adminUserId: currentUser.id,
+          createdAt: Date.now(),
+        });
+
+        await db.ref(`lists/${listId}`).set({
+          familyCode: code,
+          name: listName,
+          ownerUid,
+          ownerEmail: email,
+          createdAt: Date.now(),
+          interestNote: '',
+          quickNote: '',
+        });
+
+        await db.ref(`userFamilies/${currentUser.id}/${code}`).set({ joinedAt: Date.now() });
+        await db.ref(`familyMembers/${code}/${currentUser.id}`).set({ name: currentUser.name, joinedAt: Date.now() });
+      }
+
+      localStorage.setItem(LS.familyCode, code);
+      $('createFamilyDialog').close();
+      resetCreateDialog();
+      await goToFamily(code);
+
+    } catch (err) {
+      msg.textContent = err.message || 'Something went wrong. Try again.';
+    }
+  };
+
+  $('cfBack').onclick = () => {
+    $('cfStep1').classList.remove('hidden');
+    $('cfStep2').classList.add('hidden');
+  };
+
+  $('cfCancel').onclick = () => {
+    $('createFamilyDialog').close();
+    resetCreateDialog();
+  };
+
+  $('createFamilyDialog').addEventListener('click', e => {
+    if (e.target === $('createFamilyDialog')) { $('createFamilyDialog').close(); resetCreateDialog(); }
+  });
+}
+
+function resetCreateDialog() {
+  $('cfStep1').classList.remove('hidden');
+  $('cfStep2').classList.add('hidden');
+  $('createFamilyForm').reset();
+  $('createListForm').reset();
+  $('createListMessage').textContent = '';
+}
+
+// ── ADD LIST DIALOG ───────────────────────────────────────────
+function bindAddListDialog() {
+  $('addListBtn').onclick = () => {
+    $('addListForm').reset();
+    $('addListMessage').textContent = '';
+    $('addListDialog').showModal();
+  };
+
+  $('addListCancel').onclick = () => $('addListDialog').close();
+
+  $('addListDialog').addEventListener('click', e => {
+    if (e.target === $('addListDialog')) $('addListDialog').close();
+  });
+
+  $('addListForm').onsubmit = async e => {
+    e.preventDefault();
+    const listName = $('alListName').value.trim();
+    const email    = $('alEmail').value.trim();
+    const password = $('alPassword').value.trim();
+    const msg      = $('addListMessage');
+
+    if (password.length < 6) { msg.textContent = 'Password must be at least 6 characters.'; return; }
+    msg.textContent = 'Creating list...';
+
+    try {
+      let ownerUid = null;
+      if (auth) {
+        const cred = await auth.createUserWithEmailAndPassword(email, password);
+        ownerUid = cred.user.uid;
+        await auth.signOut();
+      }
+      if (db) {
+        const listId = db.ref('lists').push().key;
+        await db.ref(`lists/${listId}`).set({
+          familyCode: currentFamily.code,
+          name: listName,
+          ownerUid,
+          ownerEmail: email,
+          createdAt: Date.now(),
+          interestNote: '',
+          quickNote: '',
+        });
+      }
+      $('addListDialog').close();
+    } catch (err) {
+      msg.textContent = err.message || 'Something went wrong.';
+    }
+  };
+}
+
+// ── FAMILY PAGE ───────────────────────────────────────────────
+async function goToFamily(code) {
+  setSyncStatus('connecting', 'Connecting');
+
+  if (!db) {
+    currentFamily = { code, name: 'My Family', description: '' };
+    renderFamilyHeader();
+    renderListCards({});
+    showScreen('familyScreen');
+    return;
+  }
+
+  const snap = await db.ref(`families/${code}`).get();
+  if (!snap.exists()) {
+    setMsg('authMessage', 'Family not found. Try a different code.');
+    localStorage.removeItem(LS.familyCode);
+    showScreen('welcomeScreen');
+    bindWelcomeScreen();
+    return;
+  }
+
+  currentFamily = { code, ...snap.val() };
+  renderFamilyHeader();
+  showScreen('familyScreen');
+  setSyncStatus('online', 'Connected');
+
+  db.ref('lists').orderByChild('familyCode').equalTo(code).on('value', snap => {
+    renderListCards(snap.val() || {});
+  });
+}
+
+function renderFamilyHeader() {
+  $('familyPageName').textContent = currentFamily.name;
+  $('familyPageCode').textContent = currentFamily.code;
+  const descWrap = $('familyPageDescWrap');
+  if (currentFamily.description) {
+    $('familyPageDesc').textContent = currentFamily.description;
+    descWrap.classList.remove('hidden');
+  } else {
+    descWrap.classList.add('hidden');
+  }
+}
+
+function renderListCards(lists) {
+  const container = $('familyListCards');
+  container.innerHTML = '';
+
+  const entries = Object.entries(lists);
+
+  if (!entries.length) {
+    container.innerHTML = `<p class="empty-note">No lists yet — use <strong>+ New list</strong> to create one.</p>`;
+    return;
+  }
+
+  entries
+    .sort(([,a],[,b]) => (a.createdAt||0) - (b.createdAt||0))
+    .forEach(([listId, list]) => {
+      const btn = document.createElement('button');
+      btn.className = 'list-card';
+      btn.type = 'button';
+      btn.innerHTML = `
+        <div class="list-card-body">
+          <p class="list-card-name">${list.name}</p>
+          <p class="list-card-sub">Tap to view gifts</p>
+        </div>
+        <span class="list-card-arrow" aria-hidden="true">&#8594;</span>
+      `;
+      btn.addEventListener('click', () => handleListClick(listId, list));
+      container.appendChild(btn);
+    });
+}
+
+function bindFamilyPage() {
+  $('familySignOutBtn').onclick = hardSignOut;
+  bindAddListDialog();
+}
+
+// ── RELATION DIALOG ───────────────────────────────────────────
+function handleListClick(listId, list) {
+  const relKey = `wishyy.rel.${listId}`;
+  const saved  = localStorage.getItem(relKey);
+
+  if (saved !== null) {
+    openList(listId, list);
+    return;
+  }
+
+  $('relListName').textContent = list.name;
+  $('relInput').value = '';
+  $('relationDialog').showModal();
+
+  $('relationForm').onsubmit = e => {
+    e.preventDefault();
+    localStorage.setItem(relKey, $('relInput').value.trim());
+    $('relationDialog').close();
+    openList(listId, list);
+  };
+
+  $('relSkip').onclick = () => {
+    localStorage.setItem(relKey, '');
+    $('relationDialog').close();
+    openList(listId, list);
+  };
+}
+
+// ── GIFT SCREEN ───────────────────────────────────────────────
+function openList(listId, list) {
+  currentList = { id: listId, ...list };
+  localStorage.setItem('wishyy.listId', listId);
+
+  const rel = localStorage.getItem(`wishyy.rel.${listId}`);
+  $('helloText').textContent = rel
+    ? `Welcome, ${currentUser.name} (${rel})`
+    : `Welcome, ${currentUser.name}`;
+
+  const session = getOwnerSession();
+  ownerActive = !!(session && session.listId === listId);
+
+  showScreen('giftScreen');
+  setSyncStatus('online', 'Connected');
+  loadListMeta(listId);
+  loadGifts(listId);
+}
+
+function loadListMeta(listId) {
+  if (!db) return;
+  db.ref(`lists/${listId}`).on('value', snap => {
+    if (!snap.exists()) return;
+    const data = snap.val();
+    $('interestText').textContent = data.interestNote || '';
+    $('interestSection').classList.toggle('hidden', !data.interestNote);
+    const hasNote = !!data.quickNote;
+    if (hasNote) $('quickNoteText').textContent = data.quickNote;
+    $('disclaimerStrip').classList.toggle('hidden', !hasNote);
+  });
+}
+
+function loadGifts(listId) {
+  if (giftsRef) giftsRef.off();
+  if (!db) { giftsData = {}; renderGifts(); return; }
+  giftsRef = db.ref(`gifts/${listId}`);
+  giftsRef.on('value', snap => {
+    giftsData = snap.val() || {};
+    renderGifts();
+  });
+}
+
+function renderGifts() {
+  const search = ($('searchInput')?.value || '').toLowerCase().trim();
+  const sort   = $('sortSelect')?.value || 'newest';
+  const filter = $('filterSelect')?.value || 'all';
+
+  let entries = Object.entries(giftsData);
+
+  if (filter === 'available') entries = entries.filter(([,g]) => !g.boughtBy);
+  if (filter === 'bought')    entries = entries.filter(([,g]) =>  g.boughtBy);
+
+  if (search) entries = entries.filter(([,g]) =>
+    (g.name||'').toLowerCase().includes(search) ||
+    (g.store||'').toLowerCase().includes(search) ||
+    (g.note||'').toLowerCase().includes(search)
+  );
+
+  if (sort === 'priceLow')  entries.sort(([,a],[,b]) => (a.price||0)-(b.price||0));
+  if (sort === 'priceHigh') entries.sort(([,a],[,b]) => (b.price||0)-(a.price||0));
+  if (sort === 'alpha')     entries.sort(([,a],[,b]) => (a.name||'').localeCompare(b.name||''));
+  if (sort === 'newest')    entries.sort(([,a],[,b]) => (b.addedAt||0)-(a.addedAt||0));
+
+  const container = $('giftList');
+  container.innerHTML = '';
+  $('resultCount').textContent = `${entries.length} gift${entries.length !== 1 ? 's' : ''}`;
+
+  if (!entries.length) {
+    container.innerHTML = `<p class="empty-note" style="grid-column:1/-1">No gifts match your search.</p>`;
+    return;
+  }
+
+  entries.forEach(([id, gift]) => {
+    const isBought = !!gift.boughtBy;
+    const isMine   = gift.boughtBy === currentUser?.id;
+
+    const card = document.createElement('div');
+    card.className = `gift-card${isBought ? ' bought' : ''}`;
+
+    const titleHtml = isBought
+      ? `<span class="gift-title disabled">${gift.name}</span>`
+      : `<a class="gift-title" href="${gift.url}" target="_blank" rel="noopener">${gift.name}</a>`;
+
+    const previewHtml = gift.image
+      ? `<div class="preview"><img src="${gift.image}" alt="" loading="lazy" onerror="this.outerHTML='<span class=preview-fallback>No preview</span>'"></div>`
+      : '';
+
+    const actionsHtml = isBought
+      ? (isMine ? `<button class="ghost-button undo-btn" data-id="${id}">Undo bought</button>` : `<span class="bought-label">Bought</span>`)
+      : `<button class="primary-button buy-btn" data-id="${id}" data-name="${gift.name}">I bought this</button>`;
+
+    const ownerHtml = ownerActive
+      ? `<button class="ghost-button edit-btn" data-id="${id}">Edit</button>
+         <button class="danger-button delete-btn" data-id="${id}">Delete</button>`
+      : '';
 
     card.innerHTML = `
       <div class="gift-main">
-        <div>${title}</div>
-        <div class="price">${money(gift.price)}</div>
+        <div>
+          <div class="gift-title-wrap">${titleHtml}${previewHtml}</div>
+          ${gift.store || gift.price ? `<p class="meta">${[gift.store, fmtPrice(gift.price)].filter(Boolean).join(' · ')}</p>` : ''}
+          ${gift.note ? `<p class="note">${gift.note}</p>` : ''}
+        </div>
+        <span class="price">${fmtPrice(gift.price)}</span>
       </div>
-      <p class="meta">${escapeHtml(gift.store)}</p>
-      <p class="note">${escapeHtml(gift.note || "No extra notes.")}</p>
-      <div class="gift-actions">
-        ${renderGiftAction(gift)}
-      </div>
+      <div class="gift-actions">${actionsHtml}${ownerHtml}</div>
     `;
-
-    els.giftList.append(card);
+    container.appendChild(card);
   });
-}
 
-function renderGiftAction(gift) {
-  if (!gift.bought) {
-    return `<button class="secondary-button bought-button" type="button" data-id="${escapeHtml(gift.id)}">I bought this</button>`;
+  container.querySelectorAll('.buy-btn').forEach(b =>
+    b.addEventListener('click', () => openBuyDialog(b.dataset.id, b.dataset.name)));
+  container.querySelectorAll('.undo-btn').forEach(b =>
+    b.addEventListener('click', () => undoBought(b.dataset.id)));
+  if (ownerActive) {
+    container.querySelectorAll('.edit-btn').forEach(b =>
+      b.addEventListener('click', () => startEditGift(b.dataset.id)));
+    container.querySelectorAll('.delete-btn').forEach(b =>
+      b.addEventListener('click', () => deleteGift(b.dataset.id)));
   }
-
-  const boughtByCurrentUser = gift.boughtByHash && gift.boughtByHash === currentUserHash;
-  if (boughtByCurrentUser) {
-    return `
-      <span class="meta">Bought by you</span>
-      <button class="secondary-button unbuy-button" type="button" data-id="${escapeHtml(gift.id)}">Undo bought</button>
-    `;
-  }
-
-  return `<span class="meta">Bought by ${escapeHtml(gift.boughtBy || "someone")}</span>`;
 }
 
-function openBoughtDialog(giftId) {
-  const gift = state.gifts.find((item) => item.id === giftId);
-  if (!gift) return;
+// ── BUY DIALOG ────────────────────────────────────────────────
+function openBuyDialog(giftId, giftName) {
+  $('buyDialogText').textContent = `Mark "${giftName}" as bought?`;
+  const dialog = $('buyDialog');
+  dialog.showModal();
 
-  activeGiftId = giftId;
-  els.buyDialogText.textContent = `This will cross out "${gift.name}" and remove the buying link for everyone.`;
-  els.buyDialog.showModal();
-}
-
-async function markBought() {
-  const user = currentUser();
-  const gift = state.gifts.find((item) => item.id === activeGiftId);
-  if (!gift || !user) return;
-
-  gift.bought = true;
-  gift.boughtBy = `${user.name} (${user.relation})`;
-  gift.boughtByHash = currentUserHash;
-  saveLocalState();
-  if (firebaseReady && rootRef) {
-    await rootRef.child(`gifts/${gift.id}`).update({
-      bought: true,
-      boughtBy: gift.boughtBy,
-      boughtByHash: currentUserHash
+  $('confirmBoughtButton').onclick = async () => {
+    dialog.close();
+    if (db) await db.ref(`gifts/${currentList.id}/${giftId}`).update({
+      boughtBy: currentUser.id,
+      boughtAt: Date.now(),
     });
-  }
-  render();
+  };
 }
 
 async function undoBought(giftId) {
-  const gift = state.gifts.find((item) => item.id === giftId);
-  if (!gift || gift.boughtByHash !== currentUserHash) return;
+  if (!db) return;
+  await db.ref(`gifts/${currentList.id}/${giftId}`).update({ boughtBy: null, boughtAt: null });
+}
 
-  gift.bought = false;
-  gift.boughtBy = "";
-  gift.boughtByHash = "";
-  saveLocalState();
-  if (firebaseReady && rootRef) {
-    await rootRef.child(`gifts/${gift.id}`).update({
-      bought: false,
-      boughtBy: "",
-      boughtByHash: ""
-    });
-  }
-  render();
-  renderOwnerLists();
+// ── OWNER TOOLS ───────────────────────────────────────────────
+function bindOwnerTools() {
+  $('ownerButton').addEventListener('click', () => {
+    if (ownerActive) {
+      showOwnerPanel();
+    } else {
+      $('ownerUnlockForm').classList.remove('hidden');
+      $('ownerPanel').classList.add('hidden');
+      $('ownerMessage').textContent = '';
+      $('ownerDialog').showModal();
+    }
+  });
+
+  $('ownerCloseButton').addEventListener('click', () => $('ownerDialog').close());
+  $('ownerDoneButton').addEventListener('click', () => $('ownerDialog').close());
+
+  $('ownerDialog').addEventListener('click', e => {
+    if (e.target === $('ownerDialog')) $('ownerDialog').close();
+  });
+
+  $('ownerUnlockForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const email    = $('ownerEmailInput').value.trim();
+    const password = $('ownerPasswordInput').value.trim();
+    const msg      = $('ownerMessage');
+
+    if (!auth) { msg.textContent = 'Firebase not available.'; return; }
+
+    try {
+      const cred = await auth.signInWithEmailAndPassword(email, password);
+      if (currentList.ownerUid && cred.user.uid !== currentList.ownerUid) {
+        await auth.signOut();
+        msg.textContent = 'These credentials are not the owner of this list.';
+        return;
+      }
+      saveOwnerSession(currentList.id);
+      ownerActive = true;
+      showOwnerPanel();
+      renderGifts();
+    } catch {
+      msg.textContent = 'Incorrect email or password.';
+    }
+  });
+
+  $('saveInterestButton').addEventListener('click', async () => {
+    if (!db || !currentList) return;
+    await db.ref(`lists/${currentList.id}`).update({ interestNote: $('ownerInterest').value });
+  });
+
+  $('giftForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    if (!db || !currentList) return;
+    const editId = $('giftForm').dataset.editId;
+    const data = {
+      name:  $('giftName').value.trim(),
+      price: parseFloat($('giftPrice').value) || 0,
+      store: $('giftStore').value.trim(),
+      url:   $('giftUrl').value.trim(),
+      image: $('giftImage').value.trim(),
+      note:  $('giftNote').value.trim(),
+    };
+
+    if (editId) {
+      await db.ref(`gifts/${currentList.id}/${editId}`).update(data);
+      delete $('giftForm').dataset.editId;
+      $('giftSubmitButton').textContent = 'Add gift';
+      $('cancelEditButton').classList.add('hidden');
+    } else {
+      data.addedAt = Date.now();
+      await db.ref(`gifts/${currentList.id}`).push(data);
+    }
+    $('giftForm').reset();
+  });
+
+  $('cancelEditButton').addEventListener('click', () => {
+    $('giftForm').reset();
+    delete $('giftForm').dataset.editId;
+    $('giftSubmitButton').textContent = 'Add gift';
+    $('cancelEditButton').classList.add('hidden');
+  });
 }
 
 function showOwnerPanel() {
-  els.ownerUnlockForm.classList.add("hidden");
-  els.ownerPanel.classList.remove("hidden");
-  els.ownerInterest.value = state.interests;
-  els.ownerMessage.textContent = "";
-  renderOwnerLists();
-}
+  $('ownerUnlockForm').classList.add('hidden');
+  $('ownerPanel').classList.remove('hidden');
+  $('ownerDialog').showModal();
 
-function renderOwnerLists() {
-  if (!els.ownerUsersList || !els.ownerGiftsList) return;
-
-  els.ownerUsersList.innerHTML = "";
-  if (!state.users.length) {
-    const emptyUsers = document.createElement("p");
-    emptyUsers.className = "meta";
-    emptyUsers.textContent = "No visitor accounts yet.";
-    els.ownerUsersList.append(emptyUsers);
-  } else {
-    state.users
-      .slice()
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .forEach((user) => {
-        const row = document.createElement("div");
-        row.className = "owner-list-row";
-        row.innerHTML = `
-          <div>
-            <strong>${escapeHtml(user.name)}</strong>
-            <p>${escapeHtml(user.relation)} - ${boughtCountForUser(user)} bought</p>
-          </div>
-          <button class="danger-button delete-user-button" type="button" data-id="${escapeHtml(user.pinHash)}">Delete user</button>
-        `;
-        els.ownerUsersList.append(row);
-      });
+  if (db && currentList) {
+    db.ref(`lists/${currentList.id}/interestNote`).get()
+      .then(s => { $('ownerInterest').value = s.val() || ''; });
   }
 
-  els.ownerGiftsList.innerHTML = "";
-  if (!state.gifts.length) {
-    const emptyGifts = document.createElement("p");
-    emptyGifts.className = "meta";
-    emptyGifts.textContent = "No gifts on the list yet.";
-    els.ownerGiftsList.append(emptyGifts);
-  } else {
-    state.gifts
-      .slice()
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .forEach((gift) => {
-        const row = document.createElement("div");
-        row.className = "owner-list-row";
-        row.innerHTML = `
-          <div>
-            <strong>${escapeHtml(gift.name)}</strong>
-            <p>${money(gift.price)} - ${escapeHtml(gift.store)}${gift.bought ? " - bought" : ""}</p>
-          </div>
-          <div class="owner-row-actions">
-            <button class="secondary-button edit-gift-button" type="button" data-id="${escapeHtml(gift.id)}">Edit</button>
-            <button class="danger-button delete-gift-button" type="button" data-id="${escapeHtml(gift.id)}">Delete gift</button>
-          </div>
-        `;
-        els.ownerGiftsList.append(row);
-      });
-  }
-}
-
-function boughtCountForUser(user) {
-  const oldBoughtBy = `${user.name} (${user.relation})`;
-  return state.gifts.filter(
-    (gift) => gift.bought && (gift.boughtByHash === user.pinHash || gift.boughtBy === oldBoughtBy)
-  ).length;
-}
-
-function startGiftEdit(giftId) {
-  const gift = state.gifts.find((item) => item.id === giftId);
-  if (!gift) return;
-
-  editingGiftId = giftId;
-  els.giftName.value = gift.name;
-  els.giftPrice.value = gift.price;
-  els.giftStore.value = gift.store;
-  els.giftUrl.value = gift.url;
-  els.giftImage.value = gift.image || "";
-  els.giftNote.value = gift.note || "";
-  els.giftSubmitButton.textContent = "Save gift";
-  els.cancelEditButton.classList.remove("hidden");
-  els.giftName.focus();
-}
-
-function stopGiftEdit() {
-  editingGiftId = "";
-  els.giftForm.reset();
-  els.giftSubmitButton.textContent = "Add gift";
-  els.cancelEditButton.classList.add("hidden");
-}
-
-async function unlockOwner(event) {
-  event.preventDefault();
-
-  if (!auth) {
-    els.ownerMessage.textContent = "Firebase is not ready yet. Try again in a moment.";
-    return;
-  }
-
-  try {
-    await auth.signInWithEmailAndPassword(
-      els.ownerEmailInput.value.trim(),
-      els.ownerPasswordInput.value
-    );
-    ownerSignedIn = true;
-    showOwnerPanel();
-  } catch {
-    els.ownerMessage.textContent = "That owner login did not work. Check the email and password.";
-  }
-}
-
-function closeOwner() {
-  els.ownerDialog.close();
-  els.ownerUnlockForm.classList.remove("hidden");
-  els.ownerPanel.classList.add("hidden");
-  els.ownerPasswordInput.value = "";
-  els.ownerMessage.textContent = "";
-}
-
-els.createTab.addEventListener("click", showCreateMode);
-els.returnTab.addEventListener("click", showReturnMode);
-
-els.createForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const pin = els.newPin.value.trim();
-  const pinHash = await hashPin(pin);
-
-  if (state.users.some((user) => user.pinHash === pinHash)) {
-    els.authMessage.textContent = "That PIN is already taken. Choose a different one.";
-    return;
-  }
-
-  state.users.push({
-    name: els.newName.value.trim(),
-    relation: els.newRelation.value.trim(),
-    pinHash
+  const giftsList = $('ownerGiftsList');
+  giftsList.innerHTML = '';
+  Object.entries(giftsData).forEach(([id, g]) => {
+    const row = document.createElement('div');
+    row.className = 'owner-list-row';
+    row.innerHTML = `
+      <div><strong>${g.name}</strong><p>${fmtPrice(g.price)}</p></div>
+      <div class="owner-row-actions">
+        <button class="ghost-button" data-edit="${id}">Edit</button>
+        <button class="danger-button" data-del="${id}">Delete</button>
+      </div>`;
+    row.querySelector('[data-edit]').onclick = () => { startEditGift(id); $('ownerDialog').close(); };
+    row.querySelector('[data-del]').onclick  = () => deleteGift(id);
+    giftsList.appendChild(row);
   });
-  currentUserHash = pinHash;
-  localStorage.setItem(CURRENT_USER_KEY, currentUserHash);
-  saveLocalState();
-  if (firebaseReady && rootRef) {
-    await rootRef.child(`users/${pinHash}`).set({
-      name: els.newName.value.trim(),
-      relation: els.newRelation.value.trim(),
-      pinHash
-    });
+
+  if (!Object.keys(giftsData).length) {
+    giftsList.innerHTML = '<p style="color:var(--muted);margin:0">No gifts yet.</p>';
   }
-  enterApp();
-});
-
-els.returnForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const pin = els.returnPin.value.trim();
-  const pinHash = await hashPin(pin);
-
-  if (!state.users.some((user) => user.pinHash === pinHash)) {
-    els.authMessage.textContent = "I could not find that PIN. Try again or make a new account.";
-    return;
-  }
-
-  currentUserHash = pinHash;
-  localStorage.setItem(CURRENT_USER_KEY, currentUserHash);
-  enterApp();
-});
-
-els.searchInput.addEventListener("input", render);
-els.sortSelect.addEventListener("change", render);
-els.filterSelect.addEventListener("change", render);
-els.signOutButton.addEventListener("click", signOut);
-els.ownerButton.addEventListener("click", () => {
-  els.ownerDialog.showModal();
-  if (ownerSignedIn) {
-    showOwnerPanel();
-  }
-});
-els.ownerCloseButton.addEventListener("click", closeOwner);
-els.ownerDoneButton.addEventListener("click", closeOwner);
-els.ownerUnlockForm.addEventListener("submit", unlockOwner);
-
-els.giftList.addEventListener("click", (event) => {
-  const boughtButton = event.target.closest(".bought-button");
-  if (boughtButton) {
-    openBoughtDialog(boughtButton.dataset.id);
-    return;
-  }
-
-  const unbuyButton = event.target.closest(".unbuy-button");
-  if (unbuyButton) {
-    undoBought(unbuyButton.dataset.id);
-  }
-});
-
-els.confirmBoughtButton.addEventListener("click", markBought);
-
-els.saveInterestButton.addEventListener("click", async () => {
-  if (!ownerSignedIn) return;
-  state.interests = els.ownerInterest.value.trim();
-  saveLocalState();
-  if (firebaseReady && rootRef) {
-    await rootRef.child("interests").set(state.interests);
-  }
-  render();
-  renderOwnerLists();
-});
-
-els.ownerUsersList.addEventListener("click", async (event) => {
-  const button = event.target.closest(".delete-user-button");
-  if (!button || !ownerSignedIn) return;
-
-  const pinHash = button.dataset.id;
-  state.users = state.users.filter((user) => user.pinHash !== pinHash);
-  if (currentUserHash === pinHash) {
-    currentUserHash = "";
-    localStorage.removeItem(CURRENT_USER_KEY);
-  }
-
-  saveLocalState();
-  if (firebaseReady && rootRef) {
-    await rootRef.child(`users/${pinHash}`).remove();
-  }
-  renderOwnerLists();
-});
-
-els.ownerGiftsList.addEventListener("click", async (event) => {
-  const editButton = event.target.closest(".edit-gift-button");
-  if (editButton && ownerSignedIn) {
-    startGiftEdit(editButton.dataset.id);
-    return;
-  }
-
-  const button = event.target.closest(".delete-gift-button");
-  if (!button || !ownerSignedIn) return;
-
-  const giftId = button.dataset.id;
-  state.gifts = state.gifts.filter((gift) => gift.id !== giftId);
-  if (editingGiftId === giftId) {
-    stopGiftEdit();
-  }
-
-  saveLocalState();
-  if (firebaseReady && rootRef) {
-    await rootRef.child(`gifts/${giftId}`).remove();
-  }
-  render();
-  renderOwnerLists();
-});
-
-els.cancelEditButton.addEventListener("click", stopGiftEdit);
-
-els.giftForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  if (!ownerSignedIn) return;
-
-  const existingGift = state.gifts.find((item) => item.id === editingGiftId);
-  const gift = {
-    id: existingGift?.id || crypto.randomUUID(),
-    name: els.giftName.value.trim(),
-    price: Number(els.giftPrice.value),
-    store: els.giftStore.value.trim(),
-    url: els.giftUrl.value.trim(),
-    image: els.giftImage.value.trim(),
-    note: els.giftNote.value.trim(),
-    bought: existingGift?.bought || false,
-    boughtBy: existingGift?.boughtBy || "",
-    boughtByHash: existingGift?.boughtByHash || "",
-    addedAt: existingGift?.addedAt || Date.now()
-  };
-
-  if (existingGift) {
-    state.gifts = state.gifts.map((item) => (item.id === gift.id ? gift : item));
-  } else {
-    state.gifts.push(gift);
-  }
-
-  saveLocalState();
-  if (firebaseReady && rootRef) {
-    await rootRef.child(`gifts/${gift.id}`).set(gift);
-  }
-  stopGiftEdit();
-  render();
-  renderOwnerLists();
-});
-
-startFirebase();
-
-if (currentUser()) {
-  enterApp();
 }
 
-if (!hasLoadedRemote) {
-  render();
+function startEditGift(id) {
+  const g = giftsData[id];
+  if (!g) return;
+  $('giftName').value  = g.name  || '';
+  $('giftPrice').value = g.price !== undefined ? g.price : '';
+  $('giftStore').value = g.store || '';
+  $('giftUrl').value   = g.url   || '';
+  $('giftImage').value = g.image || '';
+  $('giftNote').value  = g.note  || '';
+  $('giftForm').dataset.editId = id;
+  $('giftSubmitButton').textContent = 'Save changes';
+  $('cancelEditButton').classList.remove('hidden');
+  $('giftName').focus();
 }
+
+async function deleteGift(id) {
+  if (!db || !currentList) return;
+  if (confirm('Delete this gift?')) await db.ref(`gifts/${currentList.id}/${id}`).remove();
+}
+
+// ── SIGN OUT ──────────────────────────────────────────────────
+function hardSignOut() {
+  // Signs out of everything — account + owner tools
+  clearOwnerSession();
+  if (giftsRef) { giftsRef.off(); giftsRef = null; }
+  currentList = currentFamily = currentUser = null;
+  giftsData = {};
+  ownerActive = false;
+
+  localStorage.removeItem(LS.userId);
+  localStorage.removeItem(LS.userName);
+  localStorage.removeItem(LS.userPin);
+  localStorage.removeItem(LS.familyCode);
+  localStorage.removeItem('wishyy.listId');
+
+  showScreen('welcomeScreen');
+  $('createTab').classList.add('active');
+  $('returnTab').classList.remove('active');
+  $('createForm').classList.remove('hidden');
+  $('returnForm').classList.add('hidden');
+  setMsg('authMessage', '');
+}
+
+// ── CONTROLS ─────────────────────────────────────────────────
+function bindGiftControls() {
+  $('searchInput')?.addEventListener('input', renderGifts);
+  $('sortSelect')?.addEventListener('change', renderGifts);
+  $('filterSelect')?.addEventListener('change', renderGifts);
+  $('signOutButton')?.addEventListener('click', hardSignOut);
+  $('backToFamily')?.addEventListener('click', () => {
+    if (giftsRef) { giftsRef.off(); giftsRef = null; }
+    if (currentFamily) goToFamily(currentFamily.code);
+    else showScreen('familyScreen');
+  });
+}
+
+// ── INIT ──────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+  bindCreateFamilyDialog();
+  bindFamilyPage();
+  bindOwnerTools();
+  bindGiftControls();
+  await boot();
+});

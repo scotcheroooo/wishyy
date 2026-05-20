@@ -4,13 +4,13 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>~wishyy~</title>
-    <link rel="stylesheet" href="styles.css?v=20260520-1">
+    <link rel="stylesheet" href="styles.css?v=20260520-2">
   </head>
   <body>
     <main class="app-shell">
 
+      <!-- ── UI CONTROLS ── -->
       <div class="ui-controls">
-        <!-- Dark/light toggle — UIverse by JustCode14 -->
         <label class="switch" aria-label="Toggle dark mode">
           <input id="modeToggle" type="checkbox">
           <span class="slider">
@@ -22,8 +22,6 @@
             </svg>
           </span>
         </label>
-
-        <!-- Themes button — UIverse by MuhammadHasann -->
         <button id="themesButton" class="themes-btn" type="button">
           themes
           <div class="star-1"><svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision;text-rendering:geometricPrecision;image-rendering:optimizeQuality;fill-rule:evenodd;clip-rule:evenodd" viewBox="0 0 784.11 815.53"><g><path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path></g></svg></div>
@@ -35,6 +33,9 @@
         </button>
       </div>
 
+      <!-- ══════════════════════════════════════════════
+           SCREEN 1 — WELCOME / LOGIN
+           ══════════════════════════════════════════════ -->
       <section id="welcomeScreen" class="welcome-grid">
         <div class="intro-panel">
           <p class="eyebrow">gift ideas for all the gift giving occasions!</p>
@@ -44,52 +45,42 @@
             <span class="tilde">~</span>
           </div>
           <p class="lead">
-            Pick something from the list, open the store page, and come back here to mark it as bought.
-            Bought gifts get crossed out so nobody accidentally buys the same thing twice.
+            Pick something from someone's list, open the store page, and mark it as bought.
+            Bought gifts get crossed out so nobody doubles up.
           </p>
           <div class="how-it-works" aria-label="How this works">
-            <div>
-              <span>1</span>
-              <p>Sign in with your name, relation, and a PIN you choose.</p>
-            </div>
-            <div>
-              <span>2</span>
-              <p>Search or sort the list by price, name, or newest.</p>
-            </div>
-            <div>
-              <span>3</span>
-              <p>Click a gift name to buy it, then mark it as bought here.</p>
-            </div>
+            <div><span>1</span><p>Create an account with your name and a PIN.</p></div>
+            <div><span>2</span><p>Enter a family code to join a family and see their lists.</p></div>
+            <div><span>3</span><p>Click a list, find a gift, and mark it bought.</p></div>
           </div>
         </div>
 
         <div class="signin-card" aria-live="polite">
-          <div class="tabs" role="tablist" aria-label="Sign in choices">
+          <div class="tabs" role="tablist">
             <button class="tab-button active" id="createTab" type="button">New account</button>
             <button class="tab-button" id="returnTab" type="button">Use my PIN</button>
           </div>
 
           <form id="createForm" class="auth-form">
-            <label>
-              Your name
-              <input id="newName" autocomplete="name" placeholder="Example: John" required>
-            </label>
-            <label>
-              Relation to me
-              <input id="newRelation" placeholder="Example: aunt, cousin, friend" required>
-            </label>
+            <label>Your name<input id="newName" autocomplete="name" placeholder="e.g. Grandma" required></label>
             <label>
               Set a PIN
-              <input id="newPin" inputmode="numeric" minlength="4" maxlength="12" placeholder="4 numbers or more" required>
-              <span class="field-help">Choose a PIN you will remember or write it down. It cannot be recovered after you set it.</span>
+              <input id="newPin" inputmode="numeric" minlength="4" maxlength="12" placeholder="4 or more numbers" required>
+              <span class="field-help">Write it down — it cannot be recovered.</span>
+            </label>
+            <label>
+              Family code <span class="field-optional">(optional)</span>
+              <input id="newFamilyCode" maxlength="4" placeholder="e.g. AB3X" autocomplete="off" style="text-transform:uppercase">
+              <span class="field-help">Leave blank to create a new family instead.</span>
             </label>
             <button class="primary-button" type="submit">Create account</button>
           </form>
 
           <form id="returnForm" class="auth-form hidden">
+            <label>Your PIN<input id="returnPin" inputmode="numeric" minlength="4" maxlength="12" placeholder="Enter your PIN" required></label>
             <label>
-              Your PIN
-              <input id="returnPin" inputmode="numeric" minlength="4" maxlength="12" placeholder="Enter your PIN" required>
+              Family code <span class="field-optional">(optional)</span>
+              <input id="returnFamilyCode" maxlength="4" placeholder="e.g. AB3X" autocomplete="off" style="text-transform:uppercase">
             </label>
             <button class="primary-button" type="submit">Sign in</button>
           </form>
@@ -98,6 +89,72 @@
         </div>
       </section>
 
+      <!-- ══════════════════════════════════════════════
+           SCREEN 2 — NO FAMILY
+           ══════════════════════════════════════════════ -->
+      <section id="noFamilyScreen" class="hidden">
+        <div class="nf-shell">
+          <div class="nf-card">
+            <p class="eyebrow">~ wishyy ~</p>
+            <h2>Welcome to wishyy</h2>
+            <p class="lead" style="margin-top:12px">You don't have a family yet. Join an existing one with a code, or create your own.</p>
+
+            <div class="nf-options">
+              <div class="nf-option">
+                <h3>Join a family</h3>
+                <p>Enter the 4-character family code you received.</p>
+                <form id="joinFamilyForm" class="auth-form">
+                  <label>
+                    Family code
+                    <input id="joinFamilyCode" maxlength="4" placeholder="e.g. AB3X" autocomplete="off" style="text-transform:uppercase" required>
+                  </label>
+                  <button class="primary-button" type="submit">Join family</button>
+                </form>
+                <p id="noFamilyMessage" class="message"></p>
+              </div>
+
+              <div class="nf-divider" aria-hidden="true">or</div>
+
+              <div class="nf-option">
+                <h3>Create a family</h3>
+                <p>Start a new family and invite others with a code.</p>
+                <button id="createFamilyBtn" class="primary-button" type="button">Create a family</button>
+              </div>
+            </div>
+
+            <div style="margin-top:24px;text-align:center">
+              <button id="nfSignOut" class="ghost-button" type="button" style="font-size:0.85rem">Sign out</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══════════════════════════════════════════════
+           SCREEN 3 — FAMILY PAGE
+           ══════════════════════════════════════════════ -->
+      <section id="familyScreen" class="hidden">
+        <header class="family-header">
+          <div class="family-header-text">
+            <p class="eyebrow">~ wishyy ~</p>
+            <h2 id="familyPageName">Family</h2>
+            <p class="family-code-display">Family code: <strong id="familyPageCode"></strong></p>
+          </div>
+          <div class="family-header-actions">
+            <button id="addListBtn" class="primary-button" type="button">+ New list</button>
+            <button id="familySignOutBtn" class="ghost-button" type="button">Sign out</button>
+          </div>
+        </header>
+
+        <div id="familyPageDescWrap" class="family-desc-strip hidden">
+          <p id="familyPageDesc"></p>
+        </div>
+
+        <div id="familyListCards" class="list-cards-grid"></div>
+      </section>
+
+      <!-- ══════════════════════════════════════════════
+           SCREEN 4 — GIFT LIST
+           ══════════════════════════════════════════════ -->
       <section id="giftScreen" class="hidden">
         <header class="topbar">
           <div class="topbar-title">
@@ -106,24 +163,20 @@
           </div>
           <div class="topbar-actions">
             <span id="syncStatus" class="sync-status">Connecting</span>
+            <button id="backToFamily" class="ghost-button" type="button">← Family</button>
             <button id="ownerButton" class="secondary-button" type="button">Owner tools</button>
             <button id="signOutButton" class="ghost-button" type="button">Sign out</button>
           </div>
         </header>
 
-        <section class="disclaimer-strip">
+        <section id="disclaimerStrip" class="disclaimer-strip hidden">
           <p class="section-label">Quick note</p>
-          <p>
-            Not every item on this list is from a big retailer, company, or brand like Amazon.
-            I have checked the links and looked them over to make sure they are trustworthy places to buy from.
-          </p>
+          <p id="quickNoteText"></p>
         </section>
 
-        <section class="interest-strip">
-          <div>
-            <p class="section-label">Current interests</p>
-            <p id="interestText"></p>
-          </div>
+        <section id="interestSection" class="interest-strip hidden">
+          <p class="section-label">Current interests</p>
+          <p id="interestText"></p>
         </section>
 
         <section class="controls" aria-label="List controls">
@@ -156,9 +209,14 @@
         <section id="giftList" class="gift-list" aria-label="Gift ideas"></section>
       </section>
 
+      <!-- ══════════════════════════════════════════════
+           DIALOGS
+           ══════════════════════════════════════════════ -->
+
+      <!-- Buy dialog -->
       <dialog id="buyDialog" class="modal">
         <form method="dialog">
-          <h3>Mark this as bought?</h3>
+          <h3>Mark as bought?</h3>
           <p id="buyDialogText"></p>
           <div class="modal-actions">
             <button value="cancel" class="ghost-button">Cancel</button>
@@ -167,18 +225,93 @@
         </form>
       </dialog>
 
+      <!-- Relation dialog -->
+      <dialog id="relationDialog" class="modal">
+        <form id="relationForm">
+          <h3>Your relation</h3>
+          <p>What is your relation to <strong id="relListName"></strong>?</p>
+          <label>
+            Relation
+            <input id="relInput" placeholder="e.g. aunt, friend, colleague">
+          </label>
+          <div class="modal-actions">
+            <button id="relSkip" class="ghost-button" type="button">Skip</button>
+            <button class="primary-button" type="submit">Continue</button>
+          </div>
+        </form>
+      </dialog>
+
+      <!-- Create family dialog (2 steps) -->
+      <dialog id="createFamilyDialog" class="modal owner-modal">
+        <!-- Step 1: family details -->
+        <div id="cfStep1">
+          <h3>Create a family</h3>
+          <p>Give your family a name. You'll get a 4-character code to share with others.</p>
+          <form id="createFamilyForm" class="auth-form">
+            <label>Family name<input id="cfName" placeholder="e.g. The Smith Family" required></label>
+            <label>
+              Description <span class="field-optional">(optional)</span>
+              <textarea id="cfDescription" rows="2" placeholder="e.g. For the whole extended family"></textarea>
+            </label>
+            <div class="modal-actions">
+              <button id="cfCancel" class="ghost-button" type="button">Cancel</button>
+              <button class="primary-button" type="submit">Next: create your list →</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Step 2: first list -->
+        <div id="cfStep2" class="hidden">
+          <h3>Create your list</h3>
+          <p>Your list will live inside <strong id="cfFamilyNameDisplay"></strong>. The email and password are for your owner tools on this list only.</p>
+          <form id="createListForm" class="auth-form">
+            <label>
+              List name
+              <input id="clListName" placeholder="e.g. James's List" required>
+              <span class="field-help">Include your name so others know whose list it is.</span>
+            </label>
+            <label>Owner email<input id="clEmail" type="email" placeholder="you@example.com" required></label>
+            <label>
+              Owner password
+              <input id="clPassword" type="password" placeholder="At least 6 characters" required>
+              <span class="field-help">This unlocks the owner tools panel for this list only.</span>
+            </label>
+            <p id="createListMessage" class="message"></p>
+            <div class="modal-actions">
+              <button id="cfBack" class="ghost-button" type="button">← Back</button>
+              <button class="primary-button" type="submit">Create family and list</button>
+            </div>
+          </form>
+        </div>
+      </dialog>
+
+      <!-- Add list to existing family -->
+      <dialog id="addListDialog" class="modal">
+        <h3>Add a new list</h3>
+        <p>Create a new gift list inside <strong>this family</strong>. The email and password are for the owner tools of this list only.</p>
+        <form id="addListForm" class="auth-form">
+          <label>
+            List name
+            <input id="alListName" placeholder="e.g. Sarah's List" required>
+            <span class="field-help">Include your name so others know whose list it is.</span>
+          </label>
+          <label>Owner email<input id="alEmail" type="email" placeholder="you@example.com" required></label>
+          <label>Owner password<input id="alPassword" type="password" placeholder="At least 6 characters" required></label>
+          <p id="addListMessage" class="message"></p>
+          <div class="modal-actions">
+            <button id="addListCancel" class="ghost-button" type="button">Cancel</button>
+            <button class="primary-button" type="submit">Create list</button>
+          </div>
+        </form>
+      </dialog>
+
+      <!-- Owner dialog -->
       <dialog id="ownerDialog" class="modal owner-modal">
         <form id="ownerUnlockForm" class="owner-unlock">
           <h3>Owner tools</h3>
-          <p>Use your owner email and password to add gifts, update the interest note, or reset the list.</p>
-          <label>
-            Owner email
-            <input id="ownerEmailInput" type="email" autocomplete="email" placeholder="you@example.com" required>
-          </label>
-          <label>
-            Owner password
-            <input id="ownerPasswordInput" type="password" autocomplete="current-password" required>
-          </label>
+          <p>Sign in with the owner email and password for this list.</p>
+          <label>Owner email<input id="ownerEmailInput" type="email" autocomplete="email" placeholder="you@example.com" required></label>
+          <label>Owner password<input id="ownerPasswordInput" type="password" autocomplete="current-password" required></label>
           <div class="modal-actions">
             <button id="ownerCloseButton" class="ghost-button" type="button">Close</button>
             <button class="primary-button" type="submit">Unlock</button>
@@ -188,60 +321,22 @@
 
         <div id="ownerPanel" class="owner-panel hidden">
           <div class="owner-header">
-            <div>
-              <h3>Owner tools</h3>
-              <p>Add a gift once and it appears in the sorted list automatically.</p>
-            </div>
+            <div><h3>Owner tools</h3><p>You are signed in as list owner.</p></div>
             <button id="ownerDoneButton" class="ghost-button" type="button">Done</button>
           </div>
-
-          <label>
-            Interest note
-            <textarea id="ownerInterest" rows="3"></textarea>
-          </label>
+          <label>Interest note<textarea id="ownerInterest" rows="3"></textarea></label>
           <button id="saveInterestButton" class="secondary-button" type="button">Save interest note</button>
-
           <section class="owner-section">
-            <div>
-              <h4>People using the list</h4>
-              <p class="owner-help">If someone forgets a PIN, delete their account and have them make a new one.</p>
-            </div>
-            <div id="ownerUsersList" class="owner-list"></div>
-          </section>
-
-          <section class="owner-section">
-            <div>
-              <h4>Manage gifts</h4>
-              <p class="owner-help">Delete gifts you no longer want on the list.</p>
-            </div>
+            <div><h4>Manage gifts</h4><p class="owner-help">Edit or delete gifts from the list.</p></div>
             <div id="ownerGiftsList" class="owner-list"></div>
           </section>
-
           <form id="giftForm" class="gift-form">
-            <label>
-              Gift name
-              <input id="giftName" required placeholder="Example: art markers">
-            </label>
-            <label>
-              Price
-              <input id="giftPrice" required type="number" min="0" step="0.01" placeholder="24.99">
-            </label>
-            <label>
-              Store or website
-              <input id="giftStore" required placeholder="Example: Target">
-            </label>
-            <label>
-              Buying link
-              <input id="giftUrl" required type="url" placeholder="https://...">
-            </label>
-            <label>
-              Picture link
-              <input id="giftImage" type="url" placeholder="https://...">
-            </label>
-            <label class="wide">
-              Notes
-              <textarea id="giftNote" rows="2" placeholder="Size, color, exact version, or anything helpful"></textarea>
-            </label>
+            <label>Gift name<input id="giftName" required placeholder="e.g. art markers"></label>
+            <label>Price<input id="giftPrice" type="number" min="0" step="0.01" placeholder="24.99"></label>
+            <label>Store or website<input id="giftStore" placeholder="e.g. Target"></label>
+            <label>Buying link<input id="giftUrl" required type="url" placeholder="https://..."></label>
+            <label>Picture link<input id="giftImage" type="url" placeholder="https://..."></label>
+            <label class="wide">Notes<textarea id="giftNote" rows="2" placeholder="Size, colour, exact version..."></textarea></label>
             <div class="wide form-actions">
               <button id="cancelEditButton" class="ghost-button hidden" type="button">Cancel edit</button>
               <button id="giftSubmitButton" class="primary-button" type="submit">Add gift</button>
@@ -259,8 +354,8 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
-    <script src="firebase-config.js?v=20260520-1"></script>
-    <script src="themes.js?v=20260520-1"></script>
-    <script src="app.js?v=20260520-1"></script>
+    <script src="firebase-config.js?v=20260520-2"></script>
+    <script src="themes.js?v=20260520-2"></script>
+    <script src="app.js?v=20260520-2"></script>
   </body>
 </html>
