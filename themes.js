@@ -66,7 +66,8 @@ function applyMode(mode) {
   document.documentElement.setAttribute('data-mode', mode);
   localStorage.setItem(MODE_KEY, mode);
   const toggle = document.getElementById('modeToggle');
-  if (toggle) toggle.checked = mode === 'dark';
+  // UIverse toggle: checked = light (sun/day), unchecked = dark (moon/stars)
+  if (toggle) toggle.checked = mode === 'light';
 }
 
 function applyTheme(theme) {
@@ -138,7 +139,8 @@ function initThemes() {
   applyTheme(theme);
 
   document.getElementById('modeToggle')?.addEventListener('change', function() {
-    const next     = this.checked ? 'dark' : 'light';
+    // UIverse: checked = light, unchecked = dark
+    const next     = this.checked ? 'light' : 'dark';
     const newTheme = next === 'dark' ? 'midnight' : 'fairy';
     applyMode(next);
     applyTheme(newTheme);
