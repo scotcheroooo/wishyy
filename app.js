@@ -22,6 +22,8 @@ let currentList   = null; // { id, name, ownerUid, ownerEmail, ... }
 let giftsData     = {};
 let giftsRef      = null;
 let ownerActive   = false;
+let pendingFamilyName = '';
+let pendingFamilyDesc = '';
 
 // ── UTILS ─────────────────────────────────────────────────────
 function uid() {
@@ -251,15 +253,17 @@ function bindCreateFamilyDialog() {
     e.preventDefault();
     const name = $('cfName').value.trim();
     if (!name) return;
+    pendingFamilyName = name;
+    pendingFamilyDesc = $('cfDescription').value.trim();
     $('cfStep1').classList.add('hidden');
     $('cfStep2').classList.remove('hidden');
-    $('cfFamilyNameDisplay').textContent = '\u201c' + name + '\u201d';
+    $('cfFamilyNameDisplay').textContent = name;
   };
 
   $('createListForm').onsubmit = async e => {
     e.preventDefault();
-    const familyName = $('cfName').value.trim();
-    const familyDesc = $('cfDescription').value.trim();
+    const familyName = pendingFamilyName;
+    const familyDesc = pendingFamilyDesc;
     const listName   = $('clListName').value.trim();
     const email      = $('clEmail').value.trim();
     const password   = $('clPassword').value.trim();
@@ -274,7 +278,7 @@ function bindCreateFamilyDialog() {
       if (auth) {
         const cred = await auth.createUserWithEmailAndPassword(email, password);
         ownerUid = cred.user.uid;
-        await auth.signOut();
+        // Sign out AFTER db writes, not before
       }
 
       let code = makeFamilyCode();
@@ -304,6 +308,9 @@ function bindCreateFamilyDialog() {
         await db.ref(`userFamilies/${currentUser.id}/${code}`).set({ joinedAt: Date.now() });
         await db.ref(`familyMembers/${code}/${currentUser.id}`).set({ name: currentUser.name, joinedAt: Date.now() });
       }
+
+      // Sign out of Firebase Auth after all writes are done
+      if (auth) await auth.signOut().catch(() => {});
 
       localStorage.setItem(LS.familyCode, code);
       $('createFamilyDialog').close();
@@ -429,6 +436,12 @@ function renderFamilyHeader() {
   } else {
     descWrap.classList.add('hidden');
   }
+  // Show family admin button only to the admin
+  const adminBtn = $('familyAdminBtn');
+  if (adminBtn) {
+    const isAdmin = currentUser && currentFamily.adminUserId === currentUser.id;
+    adminBtn.classList.toggle('hidden', !isAdmin);
+  }
 }
 
 function renderListCards(lists) {
@@ -463,6 +476,39 @@ function renderListCards(lists) {
 function bindFamilyPage() {
   $('familySignOutBtn').onclick = hardSignOut;
   bindAddListDialog();
+  bindFamilyAdminDialog();
+}
+
+function bindFamilyAdminDialog() {
+  const btn = $('familyAdminBtn');
+  if (!btn) return;
+
+  btn.addEventListener('click', () => {
+    $('faName').value = currentFamily.name || '';
+    $('faDescription').value = currentFamily.description || '';
+    $('faMessage').textContent = '';
+    $('familyAdminDialog').showModal();
+  });
+
+  $('faCancel').onclick = () => $('familyAdminDialog').close();
+  $('familyAdminDialog').addEventListener('click', e => {
+    if (e.target === $('familyAdminDialog')) $('familyAdminDialog').close();
+  });
+
+  $('familyAdminForm').onsubmit = async e => {
+    e.preventDefault();
+    const name = $('faName').value.trim();
+    const desc = $('faDescription').value.trim();
+    if (!name) return;
+
+    if (db && currentFamily) {
+      await db.ref(`families/${currentFamily.code}`).update({ name, description: desc });
+      currentFamily.name = name;
+      currentFamily.description = desc;
+      renderFamilyHeader();
+    }
+    $('familyAdminDialog').close();
+  };
 }
 
 // ── RELATION DIALOG ───────────────────────────────────────────
@@ -770,25 +816,27 @@ async function deleteGift(id) {
 
 // ── SIGN OUT ──────────────────────────────────────────────────
 function hardSignOut() {
-  // Signs out of everything — account + owner tools
+  // Signs out of family/list session + owner tools
+  // but KEEPS the account in localStorage so they can sign back in with their PIN
   clearOwnerSession();
   if (giftsRef) { giftsRef.off(); giftsRef = null; }
-  currentList = currentFamily = currentUser = null;
+  currentList = currentFamily = null;
   giftsData = {};
   ownerActive = false;
 
-  localStorage.removeItem(LS.userId);
-  localStorage.removeItem(LS.userName);
-  localStorage.removeItem(LS.userPin);
+  // Keep userId/userName/userPin so they can sign back in
   localStorage.removeItem(LS.familyCode);
   localStorage.removeItem('wishyy.listId');
 
   showScreen('welcomeScreen');
-  $('createTab').classList.add('active');
-  $('returnTab').classList.remove('active');
-  $('createForm').classList.remove('hidden');
-  $('returnForm').classList.add('hidden');
+  // Switch to "Use my PIN" tab since they have an existing account
+  $('returnTab').classList.add('active');
+  $('createTab').classList.remove('active');
+  $('returnForm').classList.remove('hidden');
+  $('createForm').classList.add('hidden');
   setMsg('authMessage', '');
+  $('returnPin').value = '';
+  $('returnFamilyCode').value = '';
 }
 
 // ── CONTROLS ─────────────────────────────────────────────────

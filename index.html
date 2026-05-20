@@ -140,6 +140,7 @@
             <p class="family-code-display">Family code: <strong id="familyPageCode"></strong></p>
           </div>
           <div class="family-header-actions">
+            <button id="familyAdminBtn" class="secondary-button hidden" type="button">Family settings</button>
             <button id="addListBtn" class="primary-button" type="button">+ New list</button>
             <button id="familySignOutBtn" class="ghost-button" type="button">Sign out</button>
           </div>
@@ -343,6 +344,24 @@
             </div>
           </form>
         </div>
+      </dialog>
+
+      <!-- Family admin dialog -->
+      <dialog id="familyAdminDialog" class="modal">
+        <h3>Family settings</h3>
+        <p>Update the name and description for this family.</p>
+        <form id="familyAdminForm" class="auth-form">
+          <label>Family name<input id="faName" required placeholder="e.g. The Smith Family"></label>
+          <label>
+            Description <span class="field-optional">(optional)</span>
+            <textarea id="faDescription" rows="2" placeholder="e.g. For the whole extended family"></textarea>
+          </label>
+          <p id="faMessage" class="message"></p>
+          <div class="modal-actions">
+            <button id="faCancel" class="ghost-button" type="button">Cancel</button>
+            <button class="primary-button" type="submit">Save changes</button>
+          </div>
+        </form>
       </dialog>
 
     </main>
