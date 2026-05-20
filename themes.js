@@ -1,7 +1,3 @@
-/* =====================================================
-   WISHYY — themes.js
-   ===================================================== */
-
 const LIGHT_THEMES = [
   { value:'fairy',       label:'Fairy Garden',     accent:'#9b4dca', paper:'#fdf6fb' },
   { value:'forest',      label:'Enchanted Forest', accent:'#2e7d32', paper:'#f4faf2' },
