@@ -898,7 +898,9 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 .disclaimer-strip { border-color: var(--disclaimer-border); background: var(--disclaimer-bg); }
 .disclaimer-strip p:last-child, .interest-strip p:last-child { margin: 0; line-height: 1.55; }
 
-.search-wrap { width: 100%; }
+.search-wrap { flex: 1 1 320px; }
+.controls-select { flex: 0 1 200px; }
+.controls-row { display: contents; }
 .result-count { color: var(--muted); margin: 12px 0; font-weight: 700; }
 
 .gift-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
@@ -965,23 +967,17 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   text-align: center; color: var(--muted); font-size: 0.82rem;
 }
 
-/* ── CONTROLS ROW (search + sort/filter) ── */
+/* ── CONTROLS (restored desktop: one row) ── */
 .controls {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 14px;
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 16px;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--panel);
   margin-bottom: 12px;
-}
-.controls-row {
-  display: flex;
-  gap: 10px;
-}
-.controls-select {
-  flex: 1;
 }
 
 /* ══════════════════════════════════════════════════════
@@ -1052,19 +1048,17 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
     margin-bottom: 12px;
   }
 
-  /* controls */
+  /* controls — search full width on top, sort+filter side by side below */
   .controls {
+    flex-direction: column;
+    align-items: stretch;
     padding: 12px;
     border-radius: 10px;
     gap: 8px;
   }
-  .controls-row {
-    flex-direction: column;
-    gap: 8px;
-  }
-  .controls-select {
-    width: 100%;
-  }
+  .search-wrap { flex: unset; width: 100%; }
+  .controls-row { display: flex; gap: 8px; }
+  .controls-select { flex: 1; min-width: 0; }
 
   /* gift cards — single column, touch-friendly */
   .gift-list {
