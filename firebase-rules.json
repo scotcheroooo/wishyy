@@ -3,47 +3,53 @@
     "giftList": {
       ".read": true,
       ".write": "auth != null && auth.uid === 'J6HjVU3nXGWNxPLycFKOMEEvBIo2'",
+
       "interests": {
         ".write": "auth != null && auth.uid === 'J6HjVU3nXGWNxPLycFKOMEEvBIo2'"
       },
+
       "users": {
         "$pinHash": {
           ".write": "!data.exists() && newData.child('pinHash').val() === $pinHash && newData.child('name').isString() && newData.child('relation').isString()"
         }
       },
+
       "gifts": {
-  "$giftId": {
-    ".read": true,
+        "$giftId": {
+          ".read": true,
 
-    "bought": {
-      ".write": true,
-      ".validate": "newData.isBoolean()"
-    },
+          "bought": {
+            ".write": true,
+            ".validate": "newData.isBoolean()"
+          },
 
-    "boughtBy": {
-      ".write": true,
-      ".validate": "newData.isString()"
-    },
+          "boughtBy": {
+            ".write": true,
+            ".validate": "newData.isString()"
+          },
 
-    "boughtByHash": {
-      ".write": true,
-      ".validate": "newData.isString()"
-    },
+          "boughtByHash": {
+            ".write": true,
+            ".validate": "newData.isString()"
+          },
 
-    "id": {
-      ".write": "auth != null && auth.uid === 'J6HjVU3nXGWNxPLycFKOMEEvBIo2'"
-    },
+          "id": {
+            ".write": "auth != null && auth.uid === 'J6HjVU3nXGWNxPLycFKOMEEvBIo2'"
+          },
 
-    "name": {
-      ".write": "auth != null && auth.uid === 'J6HjVU3nXGWNxPLycFKOMEEvBIo2'"
-    },
+          "name": {
+            ".write": "auth != null && auth.uid === 'J6HjVU3nXGWNxPLycFKOMEEvBIo2'"
+          },
 
-    "price": {
-      ".write": "auth != null && auth.uid === 'J6HjVU3nXGWNxPLycFKOMEEvBIo2'"
-    },
+          "price": {
+            ".write": "auth != null && auth.uid === 'J6HjVU3nXGWNxPLycFKOMEEvBIo2'"
+          },
 
-    "link": {
-      ".write": "auth != null && auth.uid === 'J6HjVU3nXGWNxPLycFKOMEEvBIo2'"
+          "link": {
+            ".write": "auth != null && auth.uid === 'J6HjVU3nXGWNxPLycFKOMEEvBIo2'"
+          }
+        }
+      }
     }
   }
 }
