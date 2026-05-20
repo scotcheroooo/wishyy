@@ -33,9 +33,6 @@
   color-scheme: dark;
 }
 
-/* ══════════════════════════════════════════════════════
-   LIGHT THEMES (25 total)
-   ══════════════════════════════════════════════════════ */
 [data-mode="light"][data-theme="forest"] {
   --font-display:'DM Serif Display',Georgia,serif;--font-body:'Nunito',sans-serif;
   --ink:#1a2e1a;--muted:#5a7a5a;--paper:#f4faf2;--panel:#fff;--line:#c8dfc4;
@@ -282,9 +279,10 @@
   --shadow:rgba(20,40,60,0.12);
 }
 
-/* ══════════════════════════════════════════════════════
-   DARK THEMES (25 total)
-   ══════════════════════════════════════════════════════ */
+
+
+
+
 [data-mode="dark"][data-theme="darkforest"] {
   --font-display:'DM Serif Display',Georgia,serif;--font-body:'Nunito',sans-serif;
   --ink:#d4edcc;--muted:#7aaa70;--paper:#0d180d;--panel:#121f12;--line:#1e3a1e;
@@ -520,9 +518,7 @@
   --shadow:rgba(0,0,0,0.6);
 }
 
-/* ══════════════════════════════════════════════════════
-   BASE STYLES
-   ══════════════════════════════════════════════════════ */
+
 * { box-sizing: border-box; }
 
 body {
@@ -554,7 +550,6 @@ button { cursor: pointer; }
   padding-bottom: 20px;
 }
 
-/* ── MODE TOGGLE (pill switch) ── */
 .mode-toggle-wrap {
   display: inline-flex;
   align-items: center;
@@ -616,7 +611,6 @@ button { cursor: pointer; }
   color: rgba(255,255,255,0.8);
 }
 
-/* ── THEMES BUTTON — UIverse by MuhammadHasann (scoped) ── */
 .themes-btn {
   position: relative;
   padding: 9px 28px;
@@ -694,7 +688,6 @@ button { cursor: pointer; }
 .themes-btn:hover .star-5 { top: 25%;  left: 115%; filter: drop-shadow(0 0 8px var(--accent)); z-index: 2; }
 .themes-btn:hover .star-6 { top: 5%;   left: 60%;  filter: drop-shadow(0 0 8px var(--accent)); z-index: 2; }
 
-/* ── THEME PICKER DIALOG ── */
 .theme-dialog {
   width: min(720px, calc(100% - 32px));
   padding: 24px;
@@ -755,7 +748,6 @@ button { cursor: pointer; }
 .swatch-dots span { width: 22px; height: 22px; border-radius: 50%; display: block; }
 .swatch-label { line-height: 1.3; }
 
-/* ── WELCOME GRID ── */
 .welcome-grid {
   min-height: calc(100vh - 140px);
   display: grid;
@@ -821,7 +813,6 @@ h4 { margin: 0; font-size: 1rem; }
 }
 .how-it-works p { margin: 0; color: var(--how-text); }
 
-/* ── SIGN IN CARD ── */
 .signin-card, .modal {
   border: 1px solid var(--line);
   border-radius: 16px;
@@ -855,7 +846,6 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   outline-offset: 2px;
 }
 
-/* ── BUTTONS ── */
 .primary-button, .secondary-button, .ghost-button, .danger-button {
   border-radius: 10px; min-height: 44px;
   padding: 10px 18px; border: 1px solid transparent;
@@ -874,7 +864,6 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 .message { min-height: 1.35em; margin: 0; color: var(--warning); font-weight: 700; }
 
-/* ── TOPBAR ── */
 .topbar, .controls, .owner-header {
   display: flex; justify-content: space-between;
   gap: 16px; align-items: center;
@@ -897,7 +886,6 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   border-color: color-mix(in srgb, var(--gold) 40%, transparent);
 }
 
-/* ── STRIPS ── */
 .disclaimer-strip, .interest-strip {
   padding: 18px; border: 1px solid var(--interest-border);
   background: var(--interest-bg); border-radius: 12px; margin-bottom: 18px;
@@ -905,7 +893,6 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 .disclaimer-strip { border-color: var(--disclaimer-border); background: var(--disclaimer-bg); }
 .disclaimer-strip p:last-child, .interest-strip p:last-child { margin: 0; line-height: 1.55; }
 
-/* ── CONTROLS ── */
 .controls {
   align-items: end; padding: 16px;
   border: 1px solid var(--line); border-radius: 12px;
@@ -915,7 +902,6 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 .controls label:not(.search-wrap) { flex: 0 1 220px; }
 .result-count { color: var(--muted); margin: 12px 0; font-weight: 700; }
 
-/* ── GIFT CARDS ── */
 .gift-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
 .gift-card {
   position: relative; display: grid; gap: 12px;
@@ -935,7 +921,6 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 .meta, .note { color: var(--muted); margin: 0; line-height: 1.45; }
 .gift-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 
-/* ── HOVER PREVIEW ── */
 .preview {
   position: absolute; z-index: 5; left: 0;
   top: calc(100% + 8px);
@@ -956,7 +941,6 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   text-align: center; padding: 12px;
 }
 
-/* ── MODALS ── */
 .modal { width: min(620px, calc(100% - 32px)); padding: 24px; }
 .modal::backdrop { background: var(--modal-backdrop); }
 .modal p { color: var(--muted); }
@@ -976,16 +960,12 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 .owner-list-row p { margin: 3px 0 0; color: var(--muted); }
 .wide { grid-column: 1 / -1; }
 
-/* ── FOOTER ── */
 .site-footer {
   margin-top: 60px; padding: 24px 0;
   border-top: 1px solid var(--line);
   text-align: center; color: var(--muted); font-size: 0.82rem;
 }
 
-/* ══════════════════════════════════════════════════════
-   RESPONSIVE / MOBILE
-   ══════════════════════════════════════════════════════ */
 @media (max-width: 760px) {
   .app-shell { width: calc(100% - 20px); padding: 10px 0 24px; }
   .welcome-grid { grid-template-columns: 1fr; min-height: unset; gap: 16px; }
