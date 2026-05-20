@@ -12,23 +12,38 @@
         }
       },
       "gifts": {
-        "$giftId": {
-          ".write": "auth != null && auth.uid === 'J6HjVU3nXGWNxPLycFKOMEEvBIo2'",
-          "bought": {
-            ".write": "newData.isBoolean()"
-          },
-          "boughtBy": {
-            ".write": "newData.isString()"
-          },
-          "boughtByHash": {
-            ".write": "newData.isString()"
-          }
-        }
-      }
+  "$giftId": {
+    ".read": true,
+
+    "bought": {
+      ".write": true,
+      ".validate": "newData.isBoolean()"
     },
-    "giftListSharedState": {
-      ".read": "auth != null && auth.uid === 'J6HjVU3nXGWNxPLycFKOMEEvBIo2'",
-      ".write": false
+
+    "boughtBy": {
+      ".write": true,
+      ".validate": "newData.isString()"
+    },
+
+    "boughtByHash": {
+      ".write": true,
+      ".validate": "newData.isString()"
+    },
+
+    "id": {
+      ".write": "auth != null && auth.uid === 'J6HjVU3nXGWNxPLycFKOMEEvBIo2'"
+    },
+
+    "name": {
+      ".write": "auth != null && auth.uid === 'J6HjVU3nXGWNxPLycFKOMEEvBIo2'"
+    },
+
+    "price": {
+      ".write": "auth != null && auth.uid === 'J6HjVU3nXGWNxPLycFKOMEEvBIo2'"
+    },
+
+    "link": {
+      ".write": "auth != null && auth.uid === 'J6HjVU3nXGWNxPLycFKOMEEvBIo2'"
     }
   }
 }
