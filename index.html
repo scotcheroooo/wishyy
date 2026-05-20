@@ -4,20 +4,22 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>~wishyy~</title>
-    <link rel="stylesheet" href="styles.css?v=20260519-2">
+    <link rel="stylesheet" href="styles.css?v=20260520-1">
   </head>
   <body>
     <main class="app-shell">
 
       <div class="ui-controls">
-        <label class="mode-toggle-wrap" aria-label="Toggle dark mode">
-          <input type="checkbox" id="modeToggle" class="mode-toggle-input">
-          <span class="mode-toggle-track">
-            <span class="mode-toggle-thumb"></span>
-            <span class="mode-toggle-icons">
-              <span class="icon-sun">&#9728;</span>
-              <span class="icon-moon">&#9790;</span>
-            </span>
+        <!-- Dark/light toggle — UIverse by JustCode14 -->
+        <label class="switch" aria-label="Toggle dark mode">
+          <input id="modeToggle" type="checkbox">
+          <span class="slider">
+            <div class="star star_1"></div>
+            <div class="star star_2"></div>
+            <div class="star star_3"></div>
+            <svg viewBox="0 0 16 16" class="cloud_1 cloud">
+              <path transform="matrix(.77976 0 0 .78395-299.99-418.63)" fill="#fff" d="m391.84 540.91c-.421-.329-.949-.524-1.523-.524-1.351 0-2.451 1.084-2.485 2.435-1.395.526-2.388 1.88-2.388 3.466 0 1.874 1.385 3.423 3.182 3.667v.034h12.73v-.006c1.775-.104 3.182-1.584 3.182-3.395 0-1.747-1.309-3.186-2.994-3.379.007-.106.011-.214.011-.322 0-2.707-2.271-4.901-5.072-4.901-2.073 0-3.856 1.202-4.643 2.925"></path>
+            </svg>
           </span>
         </label>
 
@@ -98,7 +100,7 @@
 
       <section id="giftScreen" class="hidden">
         <header class="topbar">
-          <div>
+          <div class="topbar-title">
             <p class="eyebrow">~ wishyy ~</p>
             <h2 id="helloText">Welcome</h2>
           </div>
@@ -129,23 +131,25 @@
             Search gifts
             <input id="searchInput" type="search" placeholder="Search by name, note, or store">
           </label>
-          <label>
-            Sort
-            <select id="sortSelect">
-              <option value="priceLow">Price: lowest first</option>
-              <option value="priceHigh">Price: highest first</option>
-              <option value="alpha">Name: A to Z</option>
-              <option value="newest">Newest added</option>
-            </select>
-          </label>
-          <label>
-            Show
-            <select id="filterSelect">
-              <option value="all">All gifts</option>
-              <option value="available">Available gifts</option>
-              <option value="bought">Bought gifts</option>
-            </select>
-          </label>
+          <div class="controls-row">
+            <label class="controls-select">
+              Sort
+              <select id="sortSelect">
+                <option value="priceLow">Price: lowest first</option>
+                <option value="priceHigh">Price: highest first</option>
+                <option value="alpha">Name: A to Z</option>
+                <option value="newest">Newest added</option>
+              </select>
+            </label>
+            <label class="controls-select">
+              Show
+              <select id="filterSelect">
+                <option value="all">All gifts</option>
+                <option value="available">Available gifts</option>
+                <option value="bought">Bought gifts</option>
+              </select>
+            </label>
+          </div>
         </section>
 
         <p id="resultCount" class="result-count"></p>
@@ -255,8 +259,8 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
-    <script src="firebase-config.js?v=20260519-2"></script>
-    <script src="themes.js?v=20260519-2"></script>
-    <script src="app.js?v=20260519-2"></script>
+    <script src="firebase-config.js?v=20260520-1"></script>
+    <script src="themes.js?v=20260520-1"></script>
+    <script src="app.js?v=20260520-1"></script>
   </body>
 </html>
