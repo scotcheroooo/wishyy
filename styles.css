@@ -1,12 +1,5 @@
-/* =====================================================
-   WISHYY — styles.css
-   ===================================================== */
-
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Lato:wght@400;700&family=Pacifico&family=DM+Serif+Display:ital@0;1&family=Nunito:wght@400;600;700;800&display=swap');
 
-/* ══════════════════════════════════════════════════════
-   ROOT — Fairy Garden (default light)
-   ══════════════════════════════════════════════════════ */
 :root {
   --font-display: 'Playfair Display', Georgia, serif;
   --font-body: 'Lato', sans-serif;
