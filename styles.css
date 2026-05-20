@@ -770,7 +770,7 @@ button { cursor: pointer; }
 }
 
 .intro-panel::before {
-  content: '✿';
+  content: '✧';
   position: absolute; top: -20px; right: -10px;
   font-size: 8rem; opacity: 0.06;
   pointer-events: none;
