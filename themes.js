@@ -137,7 +137,6 @@ function initThemes() {
   applyMode(mode);
   applyTheme(theme);
 
-  // Mode toggle (checkbox)
   document.getElementById('modeToggle')?.addEventListener('change', function() {
     const next     = this.checked ? 'dark' : 'light';
     const newTheme = next === 'dark' ? 'midnight' : 'fairy';
@@ -145,7 +144,6 @@ function initThemes() {
     applyTheme(newTheme);
   });
 
-  // Themes button
   document.getElementById('themesButton')?.addEventListener('click', () => {
     buildThemeDialog().showModal();
   });
