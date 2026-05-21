@@ -253,8 +253,9 @@ function bindCreateFamilyDialog() {
     e.preventDefault();
     const name = $('cfName').value.trim();
     if (!name) return;
-    pendingFamilyName = name;
-    pendingFamilyDesc = $('cfDescription').value.trim();
+    // Store in dataset on dialog element — survives resetCreateDialog
+    $('createFamilyDialog').dataset.fname = name;
+    $('createFamilyDialog').dataset.fdesc = $('cfDescription').value.trim();
     $('cfStep1').classList.add('hidden');
     $('cfStep2').classList.remove('hidden');
     $('cfFamilyNameDisplay').textContent = name;
@@ -262,8 +263,10 @@ function bindCreateFamilyDialog() {
 
   $('createListForm').onsubmit = async e => {
     e.preventDefault();
-    const familyName = pendingFamilyName;
-    const familyDesc = pendingFamilyDesc;
+    // Read from dialog dataset — reliable across steps
+    const familyName = $('createFamilyDialog').dataset.fname || '';
+    const familyDesc = $('createFamilyDialog').dataset.fdesc || '';
+    if (!familyName) { msg.textContent = 'Family name is missing. Go back and enter it.'; return; }
     const listName   = $('clListName').value.trim();
     const email      = $('clEmail').value.trim();
     const password   = $('clPassword').value.trim();
@@ -287,13 +290,16 @@ function bindCreateFamilyDialog() {
 
         const listId = db.ref('lists').push().key;
 
+        const adminId = currentUser.id;
         await db.ref(`families/${code}`).set({
           name: familyName,
           description: familyDesc,
           disclaimer: 'All of the lists in this family could have items on them that do not link to big sellers, companies, or brands like Amazon, Walmart, or Etsy. The responsibility is upon the owner of the list to view, examine, and determine if the links are safe to buy from. Any issues that come about from the used links do not fall back to the developer of the site',
-          adminUserId: currentUser.id,
+          adminUserId: adminId,
           createdAt: Date.now(),
         });
+        // Cache admin status locally so it works even before Firebase read returns
+        localStorage.setItem(`wishyy.admin.${code}`, adminId);
 
         await db.ref(`lists/${listId}`).set({
           familyCode: code,
@@ -343,6 +349,9 @@ function resetCreateDialog() {
   $('createFamilyForm').reset();
   $('createListForm').reset();
   $('createListMessage').textContent = '';
+  // Clear dataset storage
+  delete $('createFamilyDialog').dataset.fname;
+  delete $('createFamilyDialog').dataset.fdesc;
 }
 
 // ── ADD LIST DIALOG ───────────────────────────────────────────
@@ -417,6 +426,10 @@ async function goToFamily(code) {
   }
 
   currentFamily = { code, ...snap.val() };
+  // Cache admin status locally for reliable button display
+  if (currentFamily.adminUserId) {
+    localStorage.setItem(`wishyy.admin.${code}`, currentFamily.adminUserId);
+  }
   renderFamilyHeader();
   showScreen('familyScreen');
   setSyncStatus('online', 'Connected');
@@ -439,7 +452,11 @@ function renderFamilyHeader() {
   // Show family admin button only to the admin
   const adminBtn = $('familyAdminBtn');
   if (adminBtn) {
-    const isAdmin = currentUser && currentFamily.adminUserId === currentUser.id;
+    const cachedAdmin = localStorage.getItem(`wishyy.admin.${currentFamily.code}`);
+    const isAdmin = currentUser && (
+      currentFamily.adminUserId === currentUser.id ||
+      cachedAdmin === currentUser.id
+    );
     adminBtn.classList.toggle('hidden', !isAdmin);
   }
 }
