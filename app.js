@@ -45,7 +45,7 @@ async function hashPassword(p) {
 function $(id) { return document.getElementById(id); }
 
 function showScreen(id) {
-  ['welcomeScreen','noFamilyScreen','familyScreen','giftScreen'].forEach(s => {
+  ['welcomeScreen','noFamilyScreen','hubScreen','familyScreen','giftScreen','profileScreen'].forEach(s => {
     const el = $(s);
     if (el) el.classList.toggle('hidden', s !== id);
   });
@@ -124,12 +124,8 @@ async function boot() {
       if (snap.exists()) {
         const u = snap.val();
         currentUser = { id: savedId, name: u.name, pinEncoded: u.pinEncoded };
-        if (savedCode) {
-          await goToFamily(savedCode);
-          return;
-        }
-        showScreen('noFamilyScreen');
-        bindNoFamilyScreen();
+        // Always go to hub — never auto-enter a family
+        await showHub();
         return;
       }
     } catch (e) {
@@ -185,8 +181,7 @@ async function onCreateAccount(e) {
     if (code) {
       await joinFamily(code, 'authMessage');
     } else {
-      showScreen('noFamilyScreen');
-      bindNoFamilyScreen();
+      await showHub();
     }
   } catch (err) {
     setMsg('authMessage', 'Could not save your account. Check your connection.');
@@ -251,9 +246,7 @@ async function onReturnAccount(e) {
     if (code) {
       await joinFamily(code, 'authMessage');
     } else {
-      const saved = localStorage.getItem(LS.familyCode);
-      if (saved) { await goToFamily(saved); }
-      else        { showScreen('noFamilyScreen'); bindNoFamilyScreen(); }
+      await showHub();
     }
   } catch (err) {
     console.error('Sign in error:', err);
@@ -262,7 +255,80 @@ async function onReturnAccount(e) {
   }
 }
 
-// ── NO-FAMILY SCREEN ──────────────────────────────────────────
+// ── HUB SCREEN ───────────────────────────────────────────────
+async function showHub() {
+  showScreen('hubScreen');
+  $('hubUserName').textContent = currentUser.name;
+
+  // Load families this user is in
+  if (!db) return;
+  try {
+    const allFamsSnap  = await db.ref('familyMembers').get();
+    const allListsSnap = await db.ref('lists').get();
+    const allFamilyData = {};
+
+    // Find families where this user is a member
+    if (allFamsSnap.exists()) {
+      const famMembersData = allFamsSnap.val();
+      for (const [code, members] of Object.entries(famMembersData)) {
+        if (members[currentUser.id]) {
+          // Get family details
+          const famSnap = await db.ref(`families/${code}`).get();
+          if (famSnap.exists()) {
+            allFamilyData[code] = famSnap.val();
+          }
+        }
+      }
+    }
+
+    renderHubFamilies(allFamilyData, allListsSnap.val() || {});
+  } catch (err) {
+    console.error('Hub load error:', err);
+  }
+}
+
+function renderHubFamilies(families, allLists) {
+  const container = $('hubFamilyCards');
+  container.innerHTML = '';
+
+  const entries = Object.entries(families);
+  if (!entries.length) {
+    container.innerHTML = '<p class="empty-note">You are not in any families yet.</p>';
+  } else {
+    entries.forEach(([code, fam]) => {
+      const card = document.createElement('button');
+      card.className = 'list-card';
+      card.type = 'button';
+      // Count lists in this family
+      const listCount = Object.values(allLists).filter(l => l.familyCode === code).length;
+      card.innerHTML = `
+        <div class="list-card-body">
+          <p class="list-card-name">${fam.name}</p>
+          <p class="list-card-sub">Code: ${code} &nbsp;·&nbsp; ${listCount} list${listCount !== 1 ? 's' : ''}</p>
+        </div>
+        <span class="list-card-arrow">&#8594;</span>`;
+      card.addEventListener('click', () => goToFamily(code));
+      container.appendChild(card);
+    });
+  }
+}
+
+function bindHubScreen() {
+  replaceListener('hubJoinForm', 'submit', async e => {
+    e.preventDefault();
+    const code = $('hubJoinCode').value.trim().toUpperCase();
+    if (!code) return;
+    await joinFamily(code, 'hubJoinMessage');
+  });
+  replaceListener('hubCreateFamilyBtn', 'click', () => {
+    resetCreateDialog();
+    $('createFamilyDialog').showModal();
+  });
+  replaceListener('hubProfileBtn', 'click', showProfile);
+  replaceListener('hubSignOut', 'click', hardSignOut);
+}
+
+// ── NO-FAMILY SCREEN (kept for backwards compat, now unused) ──
 function bindNoFamilyScreen() {
   replaceListener('joinFamilyForm', 'submit', async e => {
     e.preventDefault();
@@ -293,7 +359,7 @@ async function joinFamily(code, msgId) {
     if (!snap.exists()) { setMsg(msgId, 'Family code not found. Check the code and try again.'); return; }
     await db.ref(`familyMembers/${code}/${currentUser.id}`).set({ name: currentUser.name, joinedAt: Date.now() });
     localStorage.setItem(LS.familyCode, code);
-    await goToFamily(code);
+    await showHub();
   } catch (err) {
     setMsg(msgId, 'Could not join family. Check your connection.');
     console.error('Join family error:', err);
@@ -370,6 +436,7 @@ async function doCreateFamily(listName, email, password) {
       familyCode: code,
       name: listName,
       ownerEmail: email,
+      ownerUserId: currentUser.id,
       ownerPasswordHash,
       createdAt: Date.now(),
       interestNote: '',
@@ -598,6 +665,7 @@ function renderListCards(lists) {
 
 function bindFamilyPage() {
   $('familySignOutBtn').onclick = hardSignOut;
+  $('backToHubBtn')?.addEventListener('click', showHub);
   bindAddListDialog();
   bindFamilyAdminDialog();
 }
@@ -1040,6 +1108,120 @@ async function deleteGift(id) {
   if (confirm('Delete this gift?')) await db.ref(`gifts/${currentList.id}/${id}`).remove();
 }
 
+// ── PROFILE ───────────────────────────────────────────────────
+async function showProfile() {
+  showScreen('profileScreen');
+  $('profileUserName').textContent = currentUser.name;
+  $('profileStats').innerHTML = '<p class="muted-note">Loading your data...</p>';
+  $('profileFamilies').innerHTML = '';
+  $('profileLists').innerHTML = '';
+
+  if (!db) return;
+
+  try {
+    const [allFamsSnap, allListsSnap, allGiftsSnap] = await Promise.all([
+      db.ref('familyMembers').get(),
+      db.ref('lists').get(),
+      db.ref('gifts').get(),
+    ]);
+
+    const allLists  = allListsSnap.val()  || {};
+    const allGifts  = allGiftsSnap.val()  || {};
+    const allFamMem = allFamsSnap.val()   || {};
+
+    // Families this user is in
+    const myFamilyCodes = Object.entries(allFamMem)
+      .filter(([, members]) => members[currentUser.id])
+      .map(([code]) => code);
+
+    // Fetch family details
+    const familyDetails = {};
+    await Promise.all(myFamilyCodes.map(async code => {
+      const snap = await db.ref(`families/${code}`).get();
+      if (snap.exists()) familyDetails[code] = snap.val();
+    }));
+
+    // My lists (where I am the owner)
+    const myLists = Object.entries(allLists)
+      .filter(([, l]) => l.ownerUserId === currentUser.id);
+
+    // Gifts I bought across all lists
+    let totalBought = 0;
+    const boughtByList = {};
+    Object.entries(allGifts).forEach(([listId, gifts]) => {
+      Object.values(gifts).forEach(g => {
+        if (g.boughtBy === currentUser.id) {
+          totalBought++;
+          const listName = allLists[listId]?.name || 'Unknown list';
+          if (!boughtByList[listName]) boughtByList[listName] = [];
+          boughtByList[listName].push(g.name);
+        }
+      });
+    });
+
+    // Render families
+    const famContainer = $('profileFamilies');
+    if (!myFamilyCodes.length) {
+      famContainer.innerHTML = '<p class="empty-note">You are not in any families.</p>';
+    } else {
+      myFamilyCodes.forEach(code => {
+        const fam = familyDetails[code] || {};
+        const isAdmin = fam.adminUserId === currentUser.id;
+        const div = document.createElement('div');
+        div.className = 'profile-row';
+        div.innerHTML = `
+          <div>
+            <strong>${fam.name || code}</strong>
+            <span class="profile-code">Code: ${code}</span>
+            ${isAdmin ? '<span class="profile-badge">Admin</span>' : ''}
+          </div>
+          <button class="ghost-button" data-code="${code}">Open</button>`;
+        div.querySelector('button').onclick = () => goToFamily(code);
+        famContainer.appendChild(div);
+      });
+    }
+
+    // Render my lists
+    const listContainer = $('profileLists');
+    if (!myLists.length) {
+      listContainer.innerHTML = '<p class="empty-note">You have not created any lists yet.</p>';
+    } else {
+      myLists.forEach(([listId, list]) => {
+        const famName = familyDetails[list.familyCode]?.name || list.familyCode;
+        const div = document.createElement('div');
+        div.className = 'profile-row';
+        div.innerHTML = `
+          <div>
+            <strong>${list.name}</strong>
+            <span class="profile-code">in ${famName}</span>
+          </div>`;
+        listContainer.appendChild(div);
+      });
+    }
+
+    // Render stats
+    const statsEl = $('profileStats');
+    if (totalBought === 0) {
+      statsEl.innerHTML = '<p class="muted-note">You have not bought anything yet.</p>';
+    } else {
+      const rows = Object.entries(boughtByList).map(([listName, items]) =>
+        `<div class="profile-stat-row">
+          <strong>${listName}</strong>
+          <span>${items.length} gift${items.length !== 1 ? 's' : ''} bought</span>
+          <p class="profile-stat-items">${items.join(', ')}</p>
+        </div>`
+      ).join('');
+      statsEl.innerHTML = `
+        <p class="profile-stat-total">Total gifts bought: <strong>${totalBought}</strong></p>
+        ${rows}`;
+    }
+
+  } catch (err) {
+    $('profileStats').innerHTML = '<p class="muted-note">Could not load data.</p>';
+    console.error('Profile load error:', err);
+  }
+}
+
 // ── EXPORT ────────────────────────────────────────────────────
 async function exportList() {
   if (!db || !currentList) return;
@@ -1116,6 +1298,7 @@ function hardSignOut() {
   giftsData = {};
   ownerActive = false;
   localStorage.removeItem(LS.familyCode);
+  currentUser = null;
 
   showScreen('welcomeScreen');
   $('returnTab').classList.add('active');
@@ -1135,9 +1318,10 @@ function bindGiftControls() {
   $('signOutButton')?.addEventListener('click', hardSignOut);
   $('backToFamily')?.addEventListener('click', () => {
     if (giftsRef) { giftsRef.off(); giftsRef = null; }
-    if (currentFamily) goToFamily(currentFamily.code);
-    else showScreen('familyScreen');
+    if (currentFamily) showScreen('familyScreen');
+    else showHub();
   });
+  $('profileBackBtn')?.addEventListener('click', showHub);
   $('exportListBtn')?.addEventListener('click', exportList);
   $('importListInput')?.addEventListener('change', e => {
     importList(e.target.files[0]);
@@ -1157,5 +1341,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   bindFamilyPage();
   bindOwnerTools();
   bindGiftControls();
+  bindHubScreen();
   await boot();
 });

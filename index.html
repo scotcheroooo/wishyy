@@ -130,6 +130,73 @@
       </section>
 
       <!-- ══════════════════════════════════════════════
+           SCREEN 2b — HUB (your families + actions)
+           ══════════════════════════════════════════════ -->
+      <section id="hubScreen" class="hidden">
+        <header class="hub-header">
+          <div>
+            <p class="eyebrow">~ wishyy ~</p>
+            <h2>Hi, <span id="hubUserName"></span></h2>
+          </div>
+          <div class="hub-header-actions">
+            <button id="hubProfileBtn" class="secondary-button" type="button">My profile</button>
+            <button id="hubSignOut" class="ghost-button" type="button">Sign out</button>
+          </div>
+        </header>
+
+        <div class="hub-body">
+          <div class="hub-section">
+            <h3 class="hub-section-title">Your families</h3>
+            <div id="hubFamilyCards" class="list-cards-grid"></div>
+          </div>
+
+          <div class="hub-actions-panel">
+            <h3 class="hub-section-title">Join or create</h3>
+            <form id="hubJoinForm" class="auth-form">
+              <label>
+                Family code
+                <input id="hubJoinCode" maxlength="4" placeholder="e.g. AB3X" autocomplete="off" style="text-transform:uppercase" required>
+              </label>
+              <button class="primary-button" type="submit">Join family</button>
+              <p id="hubJoinMessage" class="message"></p>
+            </form>
+            <div class="hub-divider">or</div>
+            <button id="hubCreateFamilyBtn" class="secondary-button" type="button" style="width:100%">Create a new family</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══════════════════════════════════════════════
+           SCREEN 2c — PROFILE
+           ══════════════════════════════════════════════ -->
+      <section id="profileScreen" class="hidden">
+        <header class="hub-header">
+          <div>
+            <p class="eyebrow">~ wishyy ~</p>
+            <h2><span id="profileUserName"></span>'s profile</h2>
+          </div>
+          <button id="profileBackBtn" class="ghost-button" type="button">← Back</button>
+        </header>
+
+        <div class="profile-body">
+          <div class="profile-section">
+            <h3 class="hub-section-title">My families</h3>
+            <div id="profileFamilies"></div>
+          </div>
+
+          <div class="profile-section">
+            <h3 class="hub-section-title">My lists</h3>
+            <div id="profileLists"></div>
+          </div>
+
+          <div class="profile-section">
+            <h3 class="hub-section-title">Gifts I've bought</h3>
+            <div id="profileStats"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══════════════════════════════════════════════
            SCREEN 3 — FAMILY PAGE
            ══════════════════════════════════════════════ -->
       <section id="familyScreen" class="hidden">
@@ -140,6 +207,7 @@
             <p class="family-code-display">Family code: <strong id="familyPageCode"></strong></p>
           </div>
           <div class="family-header-actions">
+            <button id="backToHubBtn" class="ghost-button" type="button">← My families</button>
             <button id="familyAdminBtn" class="secondary-button hidden" type="button">Family settings</button>
             <button id="addListBtn" class="primary-button" type="button">+ New list</button>
             <button id="familySignOutBtn" class="ghost-button" type="button">Sign out</button>
