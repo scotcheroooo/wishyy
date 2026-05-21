@@ -639,7 +639,9 @@ function handleListClick(listId, list) {
 
   // Pull just the first word of the list name so it reads "James is my..."
   const firstName = list.name.replace(/['']s.*$/i, '').split(' ')[0] || list.name;
-  $('relListName').textContent = firstName;
+  $('relListName').textContent  = firstName;
+  const relListName2 = document.getElementById('relListName2');
+  if (relListName2) relListName2.textContent = firstName;
   $('relInput').value = '';
   $('relationDialog').showModal();
 
@@ -660,10 +662,7 @@ function handleListClick(listId, list) {
 function openList(listId, list) {
   currentList = { id: listId, ...list };
   const rel = localStorage.getItem(`wishyy.rel.${listId}`);
-  const listFirstName = currentList.name.replace(/['']s\b.*$/i, '').split(' ')[0] || currentList.name;
-  $('helloText').textContent = rel
-    ? `${listFirstName}'s list — for ${currentUser.name} (${rel})`
-    : `${listFirstName}'s list`;
+  $('helloText').textContent = currentList.name;
 
   const session = getOwnerSession();
   ownerActive = !!(session && session.listId === listId);
@@ -753,8 +752,23 @@ function renderGifts() {
       ? `<div class="preview"><img src="${gift.image}" alt="" loading="lazy" onerror="this.outerHTML='<span class=preview-fallback>No preview</span>'"></div>`
       : '';
 
+    let boughtDisplay = '';
+    if (isBought) {
+      if (isMine) {
+        const myRel = localStorage.getItem(`wishyy.rel.${currentList.id}`) || '';
+        boughtDisplay = myRel
+          ? `<span class="bought-label">You bought this (${myRel})</span><button class="ghost-button undo-btn" data-id="${id}">Undo</button>`
+          : `<span class="bought-label">You bought this</span><button class="ghost-button undo-btn" data-id="${id}">Undo</button>`;
+      } else {
+        const bName = gift.boughtByName || 'Someone';
+        const bRel  = gift.boughtByRel  || '';
+        boughtDisplay = bRel
+          ? `<span class="bought-label">Bought by ${bName} (${bRel})</span>`
+          : `<span class="bought-label">Bought by ${bName}</span>`;
+      }
+    }
     const actionsHtml = isBought
-      ? (isMine ? `<button class="ghost-button undo-btn" data-id="${id}">Undo</button>` : `<span class="bought-label">Bought</span>`)
+      ? boughtDisplay
       : `<button class="primary-button buy-btn" data-id="${id}" data-name="${gift.name}">I bought this</button>`;
 
     const ownerHtml = ownerActive
@@ -800,10 +814,15 @@ function openBuyDialog(giftId, giftName) {
   $('buyDialog').showModal();
   $('confirmBoughtButton').onclick = async () => {
     $('buyDialog').close();
-    if (db) await db.ref(`gifts/${currentList.id}/${giftId}`).update({
-      boughtBy: currentUser.id,
-      boughtAt: Date.now(),
-    });
+    if (db) {
+      const rel = localStorage.getItem(`wishyy.rel.${currentList.id}`) || '';
+      await db.ref(`gifts/${currentList.id}/${giftId}`).update({
+        boughtBy:     currentUser.id,
+        boughtByName: currentUser.name,
+        boughtByRel:  rel,
+        boughtAt:     Date.now(),
+      });
+    }
   };
 }
 
