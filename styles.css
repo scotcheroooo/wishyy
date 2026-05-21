@@ -919,7 +919,8 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 .gift-title:hover { color: var(--accent-strong); text-decoration: underline; }
 .gift-title.disabled { color: var(--muted); pointer-events: none; }
 .price { font-weight: 800; color: var(--gold); }
-.meta, .note { color: var(--muted); margin: 0; line-height: 1.45; }
+.meta { color: var(--muted); margin: 6px 0 0; line-height: 1.45; }
+.note { color: var(--muted); margin: 8px 0 0; line-height: 1.45; font-style: italic; }
 .gift-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 
 .preview {

@@ -37,6 +37,11 @@ function encodePin(p) {
   try { return btoa(unescape(encodeURIComponent(String(p)))); } catch { return btoa(String(p)); }
 }
 
+async function hashPassword(p) {
+  const buf  = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(p)));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
 function $(id) { return document.getElementById(id); }
 
 function showScreen(id) {
@@ -82,7 +87,6 @@ function getOwnerSession() {
 function clearOwnerSession() {
   localStorage.removeItem(LS.ownerSession);
   ownerActive = false;
-  if (auth) auth.signOut().catch(() => {});
 }
 
 // ── FIREBASE ─────────────────────────────────────────────────
@@ -335,13 +339,11 @@ async function doCreateFamily(listName, email, password) {
     code = makeFamilyCode();
   }
 
-  // Create Firebase Auth user for list owner (if list is being created)
-  let ownerUid = null;
+  // Hash password and store in DB — no Firebase Auth needed for list ownership
+  // This allows same email across multiple families
+  let ownerPasswordHash = null;
   if (listName && email && password) {
-    if (auth) {
-      const cred = await auth.createUserWithEmailAndPassword(email, password);
-      ownerUid = cred.user.uid;
-    }
+    ownerPasswordHash = await hashPassword(password);
   }
 
   // Write family
@@ -355,12 +357,20 @@ async function doCreateFamily(listName, email, password) {
 
   // Write first list (if not skipped)
   if (listName) {
+    // Check if this email already has a list in this family
+    const existingSnap = await db.ref('lists').get();
+    if (existingSnap.exists()) {
+      const conflict = Object.values(existingSnap.val()).some(
+        l => l.familyCode === code && l.ownerEmail?.toLowerCase() === email.toLowerCase()
+      );
+      if (conflict) throw new Error('This email already has a list in this family.');
+    }
     const listId = db.ref('lists').push().key;
     await db.ref(`lists/${listId}`).set({
       familyCode: code,
       name: listName,
-      ownerUid,
       ownerEmail: email,
+      ownerPasswordHash,
       createdAt: Date.now(),
       interestNote: '',
       quickNote: '',
@@ -755,7 +765,7 @@ function renderGifts() {
       <div class="gift-main">
         <div>
           <div class="gift-title-wrap">${titleHtml}${previewHtml}</div>
-          ${gift.store || gift.price ? `<p class="meta">${[gift.store, fmtPrice(gift.price)].filter(Boolean).join(' · ')}</p>` : ''}
+          ${gift.store ? `<p class="meta">${gift.store}</p>` : ''}
           ${gift.note ? `<p class="note">${gift.note}</p>` : ''}
         </div>
         <div class="gift-aside">
@@ -822,18 +832,22 @@ function bindOwnerTools() {
     const msg      = $('ownerMessage');
     if (!auth) { msg.textContent = 'Firebase not available.'; return; }
     try {
-      const cred = await auth.signInWithEmailAndPassword(email, password);
-      if (currentList.ownerUid && cred.user.uid !== currentList.ownerUid) {
-        await auth.signOut();
-        msg.textContent = 'These credentials are not the owner of this list.';
+      // Compare against stored hash — no Firebase Auth needed
+      const entered = await hashPassword(password);
+      const emailMatch = currentList.ownerEmail?.toLowerCase() === email.toLowerCase();
+      const passMatch  = currentList.ownerPasswordHash === entered;
+
+      if (!emailMatch || !passMatch) {
+        msg.textContent = 'Incorrect email or password.';
         return;
       }
       saveOwnerSession(currentList.id);
       ownerActive = true;
       showOwnerPanel();
       renderGifts();
-    } catch {
-      msg.textContent = 'Incorrect email or password.';
+    } catch (err) {
+      msg.textContent = 'Something went wrong. Try again.';
+      console.error('Owner unlock error:', err);
     }
   });
 
@@ -981,7 +995,12 @@ function startEditGift(id) {
   $('giftForm').dataset.editId = id;
   $('giftSubmitButton').textContent = 'Save changes';
   $('cancelEditButton').classList.remove('hidden');
-  $('giftName').focus();
+  // Open the owner panel so the form is visible
+  $('ownerUnlockForm').classList.add('hidden');
+  $('ownerPanel').classList.remove('hidden');
+  $('ownerDialog').showModal();
+  // Scroll to the gift form after a tick so it's rendered
+  setTimeout(() => $('giftForm').scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
 }
 
 async function deleteGift(id) {
