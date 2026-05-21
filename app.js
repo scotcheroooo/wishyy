@@ -193,12 +193,11 @@ async function onCreateAccount(e) {
 
 async function onReturnAccount(e) {
   e.preventDefault();
-  const name = $('returnName').value.trim();
   const pin  = $('returnPin').value.trim();
   const code = $('returnFamilyCode').value.trim().toUpperCase();
   const btn  = e.target.querySelector('button[type=submit]');
 
-  if (!name || !pin) { setMsg('authMessage', 'Please enter your name and PIN.'); return; }
+  if (!pin) { setMsg('authMessage', 'Please enter your PIN.'); return; }
   setBtnLoading(btn, true, 'Sign in');
   setMsg('authMessage', 'Looking up your account...');
 
@@ -207,28 +206,35 @@ async function onReturnAccount(e) {
   try {
     if (!db) throw new Error('No database connection.');
 
-    // Query Firebase for user with matching name + pin
-    const snap = await db.ref('users')
-      .orderByChild('pinEncoded')
-      .equalTo(pinEncoded)
-      .get();
+    let foundUser = null;
 
-    if (!snap.exists()) {
-      setMsg('authMessage', 'No account found with that PIN.');
-      setBtnLoading(btn, false, 'Sign in');
-      return;
+    // Try indexed query first (fast), fall back to full scan (works without index)
+    try {
+      const snap = await db.ref('users')
+        .orderByChild('pinEncoded')
+        .equalTo(pinEncoded)
+        .get();
+      if (snap.exists()) {
+        snap.forEach(child => {
+          if (!foundUser) foundUser = { id: child.key, ...child.val() };
+        });
+      }
+    } catch (indexErr) {
+      // Index not yet published — fall back to full scan
+      console.warn('Index query failed, falling back to full scan:', indexErr.message);
+      const allSnap = await db.ref('users').get();
+      if (allSnap.exists()) {
+        allSnap.forEach(child => {
+          const u = child.val();
+          if (!foundUser && u.pinEncoded === pinEncoded) {
+            foundUser = { id: child.key, ...u };
+          }
+        });
+      }
     }
 
-    let foundUser = null;
-    snap.forEach(child => {
-      const u = child.val();
-      if (u.name.toLowerCase() === name.toLowerCase()) {
-        foundUser = { id: child.key, ...u };
-      }
-    });
-
     if (!foundUser) {
-      setMsg('authMessage', 'Name and PIN do not match. Check your details.');
+      setMsg('authMessage', 'No account found with that PIN. Check you entered it correctly.');
       setBtnLoading(btn, false, 'Sign in');
       return;
     }
@@ -246,9 +252,9 @@ async function onReturnAccount(e) {
       else        { showScreen('noFamilyScreen'); bindNoFamilyScreen(); }
     }
   } catch (err) {
-    setMsg('authMessage', 'Something went wrong. Check your connection.');
-    setBtnLoading(btn, false, 'Sign in');
     console.error('Sign in error:', err);
+    setMsg('authMessage', `Sign in failed: ${err.message}`);
+    setBtnLoading(btn, false, 'Sign in');
   }
 }
 
@@ -914,7 +920,6 @@ function hardSignOut() {
   $('createForm').classList.add('hidden');
   setMsg('authMessage', '');
   $('returnPin').value = '';
-  $('returnName').value = '';
   if ($('returnFamilyCode')) $('returnFamilyCode').value = '';
 }
 
