@@ -86,6 +86,9 @@
           </form>
 
           <p id="authMessage" class="message"></p>
+          <div style="margin-top:14px;text-align:center">
+            <button id="profileQuickBtn" class="ghost-button" type="button" style="font-size:0.85rem;width:100%">My profile / My families</button>
+          </div>
         </div>
       </section>
 
@@ -313,6 +316,23 @@
       <!-- ══════════════════════════════════════════════
            DIALOGS
            ══════════════════════════════════════════════ -->
+
+      <!-- Profile quick-access dialog -->
+      <dialog id="profileQuickDialog" class="modal">
+        <h3>My profile</h3>
+        <p>Enter your PIN to view your families and profile.</p>
+        <form id="profileQuickForm" class="auth-form">
+          <label>
+            Your PIN
+            <input id="profileQuickPin" inputmode="numeric" minlength="4" maxlength="12" placeholder="Enter your PIN" required>
+          </label>
+          <p id="profileQuickMessage" class="message"></p>
+          <div class="modal-actions">
+            <button class="ghost-button" type="button" onclick="this.closest('dialog').close()">Cancel</button>
+            <button class="primary-button" type="submit">Go to my profile</button>
+          </div>
+        </form>
+      </dialog>
 
       <!-- Buy dialog -->
       <dialog id="buyDialog" class="modal">

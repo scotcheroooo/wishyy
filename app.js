@@ -145,6 +145,44 @@ function bindWelcomeScreen() {
   $('returnTab').onclick = () => switchTab('return');
   $('createForm').onsubmit  = onCreateAccount;
   $('returnForm').onsubmit  = onReturnAccount;
+  $('profileQuickBtn')?.addEventListener('click', () => {
+    $('profileQuickDialog').showModal();
+    $('profileQuickPin').value = '';
+    $('profileQuickMessage').textContent = '';
+  });
+  $('profileQuickForm')?.addEventListener('submit', async e => {
+    e.preventDefault();
+    const pin = $('profileQuickPin').value.trim();
+    const btn = e.target.querySelector('button[type=submit]');
+    if (!pin) return;
+    setBtnLoading(btn, true, 'Go to my profile');
+    const pinEncoded = encodePin(pin);
+    try {
+      let foundUser = null;
+      try {
+        const snap = await db.ref('users').orderByChild('pinEncoded').equalTo(pinEncoded).get();
+        if (snap.exists()) snap.forEach(c => { if (!foundUser) foundUser = { id: c.key, ...c.val() }; });
+      } catch {
+        const all = await db.ref('users').get();
+        if (all.exists()) all.forEach(c => { const u = c.val(); if (!foundUser && u.pinEncoded === pinEncoded) foundUser = { id: c.key, ...u }; });
+      }
+      if (!foundUser) {
+        $('profileQuickMessage').textContent = 'No account found with that PIN.';
+        setBtnLoading(btn, false, 'Go to my profile');
+        return;
+      }
+      currentUser = { id: foundUser.id, name: foundUser.name, pinEncoded: foundUser.pinEncoded };
+      localStorage.setItem(LS.userId, foundUser.id);
+      $('profileQuickDialog').close();
+      await showHub();
+    } catch (err) {
+      $('profileQuickMessage').textContent = `Error: ${err.message}`;
+      setBtnLoading(btn, false, 'Go to my profile');
+    }
+  });
+  $('profileQuickDialog')?.addEventListener('click', e => {
+    if (e.target === $('profileQuickDialog')) $('profileQuickDialog').close();
+  });
 }
 
 function switchTab(tab) {
@@ -179,7 +217,7 @@ async function onCreateAccount(e) {
     setBtnLoading(btn, false, 'Create account');
 
     if (code) {
-      await joinFamily(code, 'authMessage');
+      await joinFamily(code, 'authMessage', true); // goDirectly = true
     } else {
       await showHub();
     }
@@ -244,7 +282,7 @@ async function onReturnAccount(e) {
     setMsg('authMessage', '');
 
     if (code) {
-      await joinFamily(code, 'authMessage');
+      await joinFamily(code, 'authMessage', true); // goDirectly = true
     } else {
       await showHub();
     }
@@ -351,7 +389,7 @@ function replaceListener(id, event, fn) {
   clone.addEventListener(event, fn);
 }
 
-async function joinFamily(code, msgId) {
+async function joinFamily(code, msgId, goDirectly = false) {
   if (!code) { setMsg(msgId, 'Please enter a family code.'); return; }
   if (!db)   { setMsg(msgId, 'No database connection.'); return; }
   try {
@@ -359,7 +397,11 @@ async function joinFamily(code, msgId) {
     if (!snap.exists()) { setMsg(msgId, 'Family code not found. Check the code and try again.'); return; }
     await db.ref(`familyMembers/${code}/${currentUser.id}`).set({ name: currentUser.name, joinedAt: Date.now() });
     localStorage.setItem(LS.familyCode, code);
-    await showHub();
+    if (goDirectly) {
+      await goToFamily(code);
+    } else {
+      await showHub();
+    }
   } catch (err) {
     setMsg(msgId, 'Could not join family. Check your connection.');
     console.error('Join family error:', err);
