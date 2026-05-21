@@ -637,7 +637,9 @@ function handleListClick(listId, list) {
   const saved  = localStorage.getItem(relKey);
   if (saved !== null) { openList(listId, list); return; }
 
-  $('relListName').textContent = list.name;
+  // Pull just the first word of the list name so it reads "James is my..."
+  const firstName = list.name.replace(/['']s.*$/i, '').split(' ')[0] || list.name;
+  $('relListName').textContent = firstName;
   $('relInput').value = '';
   $('relationDialog').showModal();
 
@@ -658,9 +660,10 @@ function handleListClick(listId, list) {
 function openList(listId, list) {
   currentList = { id: listId, ...list };
   const rel = localStorage.getItem(`wishyy.rel.${listId}`);
+  const listFirstName = currentList.name.replace(/['']s.*$/i, '').split(' ')[0] || currentList.name;
   $('helloText').textContent = rel
-    ? `${currentUser.name} (${rel})`
-    : currentUser.name;
+    ? `${listFirstName}'s list — for ${currentUser.name} (${rel})`
+    : `${listFirstName}'s list`;
 
   const session = getOwnerSession();
   ownerActive = !!(session && session.listId === listId);
