@@ -89,7 +89,7 @@ function clearOwnerSession() {
 function initFirebase() {
   try {
     if (typeof firebase === 'undefined') return false;
-    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    if (!firebase.apps.length) firebase.initializeApp(window.GIFT_LIST_FIREBASE_CONFIG);
     db   = firebase.database();
     auth = firebase.auth();
     return true;
