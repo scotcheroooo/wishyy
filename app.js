@@ -666,11 +666,25 @@ function loadListMeta(listId) {
   db.ref(`lists/${listId}`).on('value', snap => {
     if (!snap.exists()) return;
     const data = snap.val();
+
+    // Interest note
     $('interestText').textContent = data.interestNote || '';
     $('interestSection').classList.toggle('hidden', !data.interestNote);
+
+    // Quick note
     if (data.quickNote) $('quickNoteText').textContent = data.quickNote;
     $('disclaimerStrip').classList.toggle('hidden', !data.quickNote);
+
+    // Show edit/delete buttons on notes if owner is active
+    if (ownerActive) showNoteEditButtons();
   });
+}
+
+function showNoteEditButtons() {
+  $('editInterestBtn')?.classList.remove('hidden');
+  $('deleteInterestBtn')?.classList.remove('hidden');
+  $('editQuickNoteBtn')?.classList.remove('hidden');
+  $('deleteQuickNoteBtn')?.classList.remove('hidden');
 }
 
 function loadGifts(listId) {
@@ -700,6 +714,7 @@ function renderGifts() {
   if (sort === 'priceHigh') entries.sort(([,a],[,b]) => (b.price||0)-(a.price||0));
   if (sort === 'alpha')     entries.sort(([,a],[,b]) => (a.name||'').localeCompare(b.name||''));
   if (sort === 'newest')    entries.sort(([,a],[,b]) => (b.addedAt||0)-(a.addedAt||0));
+  if (sort === 'wantHigh')  entries.sort(([,a],[,b]) => (b.want||0)-(a.want||0));
 
   const container = $('giftList');
   container.innerHTML = '';
@@ -733,6 +748,9 @@ function renderGifts() {
          <button class="danger-button delete-btn" data-id="${id}">Delete</button>`
       : '';
 
+    const wantBadge = (gift.want && gift.want > 0)
+      ? `<span class="want-badge want-${gift.want}" title="Want level ${gift.want}/10">${gift.want}/10</span>`
+      : '';
     card.innerHTML = `
       <div class="gift-main">
         <div>
@@ -740,7 +758,10 @@ function renderGifts() {
           ${gift.store || gift.price ? `<p class="meta">${[gift.store, fmtPrice(gift.price)].filter(Boolean).join(' · ')}</p>` : ''}
           ${gift.note ? `<p class="note">${gift.note}</p>` : ''}
         </div>
-        <span class="price">${fmtPrice(gift.price)}</span>
+        <div class="gift-aside">
+          ${gift.price ? `<span class="price">${fmtPrice(gift.price)}</span>` : ''}
+          ${wantBadge}
+        </div>
       </div>
       <div class="gift-actions">${actionsHtml}${ownerHtml}</div>
     `;
@@ -821,10 +842,63 @@ function bindOwnerTools() {
     await db.ref(`lists/${currentList.id}`).update({ interestNote: $('ownerInterest').value });
   });
 
+  $('saveQuickNoteButton')?.addEventListener('click', async () => {
+    if (!db || !currentList) return;
+    await db.ref(`lists/${currentList.id}`).update({ quickNote: $('ownerQuickNote').value });
+  });
+
+  // Inline note edit/delete buttons on the gift screen
+  $('editInterestBtn')?.addEventListener('click', () => {
+    $('inlineInterestInput').value = $('interestText').textContent;
+    $('interestViewMode').classList.add('hidden');
+    $('interestEditMode').classList.remove('hidden');
+  });
+  $('saveInterestInlineBtn')?.addEventListener('click', async () => {
+    if (!db || !currentList) return;
+    const val = $('inlineInterestInput').value.trim();
+    await db.ref(`lists/${currentList.id}`).update({ interestNote: val });
+    $('interestViewMode').classList.remove('hidden');
+    $('interestEditMode').classList.add('hidden');
+  });
+  $('cancelInterestInlineBtn')?.addEventListener('click', () => {
+    $('interestViewMode').classList.remove('hidden');
+    $('interestEditMode').classList.add('hidden');
+  });
+  $('deleteInterestBtn')?.addEventListener('click', async () => {
+    if (!db || !currentList) return;
+    if (confirm('Delete the interest note?')) {
+      await db.ref(`lists/${currentList.id}`).update({ interestNote: '' });
+    }
+  });
+
+  $('editQuickNoteBtn')?.addEventListener('click', () => {
+    $('inlineQuickNoteInput').value = $('quickNoteText').textContent;
+    $('quickNoteViewMode').classList.add('hidden');
+    $('quickNoteEditMode').classList.remove('hidden');
+  });
+  $('saveQuickNoteInlineBtn')?.addEventListener('click', async () => {
+    if (!db || !currentList) return;
+    const val = $('inlineQuickNoteInput').value.trim();
+    await db.ref(`lists/${currentList.id}`).update({ quickNote: val });
+    $('quickNoteViewMode').classList.remove('hidden');
+    $('quickNoteEditMode').classList.add('hidden');
+  });
+  $('cancelQuickNoteInlineBtn')?.addEventListener('click', () => {
+    $('quickNoteViewMode').classList.remove('hidden');
+    $('quickNoteEditMode').classList.add('hidden');
+  });
+  $('deleteQuickNoteBtn')?.addEventListener('click', async () => {
+    if (!db || !currentList) return;
+    if (confirm('Delete the quick note?')) {
+      await db.ref(`lists/${currentList.id}`).update({ quickNote: '' });
+    }
+  });
+
   $('giftForm').addEventListener('submit', async e => {
     e.preventDefault();
     if (!db || !currentList) return;
     const editId = $('giftForm').dataset.editId;
+    const wantVal = parseInt($('giftWant').value, 10);
     const data = {
       name:  $('giftName').value.trim(),
       price: parseFloat($('giftPrice').value) || 0,
@@ -832,6 +906,7 @@ function bindOwnerTools() {
       url:   $('giftUrl').value.trim(),
       image: $('giftImage').value.trim(),
       note:  $('giftNote').value.trim(),
+      want:  isNaN(wantVal) ? null : wantVal,
     };
     if (editId) {
       await db.ref(`gifts/${currentList.id}/${editId}`).update(data);
@@ -843,10 +918,14 @@ function bindOwnerTools() {
       await db.ref(`gifts/${currentList.id}`).push(data);
     }
     $('giftForm').reset();
+    $('giftWant').value = '';
+    updateWantDisplay();
   });
 
   $('cancelEditButton').addEventListener('click', () => {
     $('giftForm').reset();
+    $('giftWant').value = '';
+    updateWantDisplay();
     delete $('giftForm').dataset.editId;
     $('giftSubmitButton').textContent = 'Add gift';
     $('cancelEditButton').classList.add('hidden');
@@ -858,9 +937,14 @@ function showOwnerPanel() {
   $('ownerPanel').classList.remove('hidden');
   $('ownerDialog').showModal();
   if (db && currentList) {
-    db.ref(`lists/${currentList.id}/interestNote`).get()
-      .then(s => { $('ownerInterest').value = s.val() || ''; });
+    db.ref(`lists/${currentList.id}`).get().then(s => {
+      const d = s.val() || {};
+      $('ownerInterest').value  = d.interestNote || '';
+      $('ownerQuickNote').value = d.quickNote    || '';
+    });
   }
+  // Show inline note edit buttons now that owner is confirmed active
+  showNoteEditButtons();
   const giftsList = $('ownerGiftsList');
   giftsList.innerHTML = '';
   const entries = Object.entries(giftsData);
@@ -892,6 +976,8 @@ function startEditGift(id) {
   $('giftUrl').value   = g.url   || '';
   $('giftImage').value = g.image || '';
   $('giftNote').value  = g.note  || '';
+  $('giftWant').value  = g.want !== undefined && g.want !== null ? g.want : '';
+  updateWantDisplay();
   $('giftForm').dataset.editId = id;
   $('giftSubmitButton').textContent = 'Save changes';
   $('cancelEditButton').classList.remove('hidden');
@@ -901,6 +987,73 @@ function startEditGift(id) {
 async function deleteGift(id) {
   if (!db || !currentList) return;
   if (confirm('Delete this gift?')) await db.ref(`gifts/${currentList.id}/${id}`).remove();
+}
+
+// ── EXPORT ────────────────────────────────────────────────────
+async function exportList() {
+  if (!db || !currentList) return;
+  const [listSnap, giftsSnap] = await Promise.all([
+    db.ref(`lists/${currentList.id}`).get(),
+    db.ref(`gifts/${currentList.id}`).get(),
+  ]);
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    list:  listSnap.val()  || {},
+    gifts: giftsSnap.val() || {},
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `${(currentList.name || 'wishyy-list').replace(/[^a-z0-9]/gi, '-')}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── IMPORT ────────────────────────────────────────────────────
+function importList(file) {
+  if (!file || !db || !currentList) return;
+  const reader = new FileReader();
+  reader.onload = async ev => {
+    try {
+      const payload = JSON.parse(ev.target.result);
+      const gifts   = payload.gifts || {};
+      const updates = {};
+      Object.entries(gifts).forEach(([id, gift]) => {
+        // Strip bought status on import, keep everything else
+        const { boughtBy, boughtAt, ...clean } = gift;
+        updates[`gifts/${currentList.id}/${id}`] = { ...clean, importedAt: Date.now() };
+      });
+      if (payload.list?.interestNote) {
+        updates[`lists/${currentList.id}/interestNote`] = payload.list.interestNote;
+      }
+      if (payload.list?.quickNote) {
+        updates[`lists/${currentList.id}/quickNote`] = payload.list.quickNote;
+      }
+      await db.ref().update(updates);
+      alert(`Imported ${Object.keys(gifts).length} gifts successfully.`);
+    } catch (err) {
+      alert('Import failed. Make sure you are using a valid wishyy export file.');
+      console.error('Import error:', err);
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ── WANT SLIDER DISPLAY ───────────────────────────────────────
+function updateWantDisplay() {
+  const slider = $('giftWant');
+  const label  = $('wantLabel');
+  if (!slider || !label) return;
+  const v = parseInt(slider.value, 10);
+  if (!slider.value || isNaN(v)) {
+    label.textContent = 'Not set';
+    label.className   = 'want-display-label';
+  } else {
+    const desc = v >= 9 ? 'Must have' : v >= 7 ? 'Really want' : v >= 5 ? 'Would love' : v >= 3 ? 'Would like' : 'Nice to have';
+    label.textContent = `${v}/10 — ${desc}`;
+    label.className   = `want-display-label want-text-${v}`;
+  }
 }
 
 // ── SIGN OUT ──────────────────────────────────────────────────
@@ -933,6 +1086,17 @@ function bindGiftControls() {
     if (giftsRef) { giftsRef.off(); giftsRef = null; }
     if (currentFamily) goToFamily(currentFamily.code);
     else showScreen('familyScreen');
+  });
+  $('exportListBtn')?.addEventListener('click', exportList);
+  $('importListInput')?.addEventListener('change', e => {
+    importList(e.target.files[0]);
+    e.target.value = '';
+  });
+  $('giftWant')?.addEventListener('input', updateWantDisplay);
+
+  $('wantClearBtn')?.addEventListener('click', () => {
+    $('giftWant').value = '';
+    updateWantDisplay();
   });
 }
 

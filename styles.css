@@ -1463,3 +1463,141 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   .list-cards-grid { grid-template-columns: 1fr; gap: 10px; }
   .list-card { padding: 16px 18px; }
 }
+/* ══════════════════════════════════════════════════════
+   PHASE 3 — WANT LEVEL, NOTE EDITING, EXPORT/IMPORT
+   ══════════════════════════════════════════════════════ */
+
+/* ── GIFT ASIDE (price + want badge stacked) ── */
+.gift-aside {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* ── WANT BADGE on gift cards ── */
+.want-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  white-space: nowrap;
+  font-family: var(--font-body);
+}
+
+/* colour scale 1–10 */
+.want-1, .want-2  { background: color-mix(in srgb, var(--muted) 15%, transparent); color: var(--muted); }
+.want-3, .want-4  { background: color-mix(in srgb, var(--gold) 20%, transparent);  color: var(--gold); }
+.want-5, .want-6  { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); }
+.want-7, .want-8  { background: color-mix(in srgb, var(--accent) 25%, transparent); color: var(--accent-strong); }
+.want-9, .want-10 { background: var(--accent); color: white; }
+
+/* ── WANT SLIDER in gift form ── */
+.want-slider-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.want-slider {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--line);
+  outline: none;
+  cursor: pointer;
+  padding: 0;
+  border: none;
+}
+
+.want-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 1px 4px var(--shadow);
+  transition: transform 0.15s;
+}
+.want-slider::-webkit-slider-thumb:hover { transform: scale(1.15); }
+.want-slider::-moz-range-thumb {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 1px 4px var(--shadow);
+}
+
+.want-clear-btn {
+  min-height: 34px;
+  padding: 4px 12px;
+  font-size: 0.82rem;
+  flex-shrink: 0;
+}
+
+.want-display-label {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--muted);
+  font-family: var(--font-body);
+  min-height: 1.2em;
+}
+.want-text-1, .want-text-2  { color: var(--muted); }
+.want-text-3, .want-text-4  { color: var(--gold); }
+.want-text-5, .want-text-6  { color: var(--accent); }
+.want-text-7, .want-text-8  { color: var(--accent-strong); }
+.want-text-9, .want-text-10 { color: var(--accent); font-size: 0.95rem; }
+
+/* ── NOTE STRIPS with edit/delete ── */
+.note-strip-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.note-strip-header .section-label { margin-bottom: 0; }
+
+.note-strip-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.note-action-btn {
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: var(--font-body);
+}
+.note-action-btn:hover { border-color: var(--accent); color: var(--accent); }
+.note-action-delete:hover { border-color: var(--warning); color: var(--warning); }
+
+.note-edit-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+.note-edit-actions button { min-height: 36px; padding: 6px 14px; font-size: 0.88rem; }
+
+@media (max-width: 680px) {
+  .gift-aside { align-items: flex-start; flex-direction: row; flex-wrap: wrap; }
+  .want-slider-wrap { flex-wrap: wrap; }
+  .want-slider { min-width: 120px; }
+  .note-strip-header { flex-wrap: wrap; gap: 8px; }
+}

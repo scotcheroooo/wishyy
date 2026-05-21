@@ -171,13 +171,43 @@
         </header>
 
         <section id="disclaimerStrip" class="disclaimer-strip hidden">
-          <p class="section-label">Quick note</p>
-          <p id="quickNoteText"></p>
+          <div class="note-strip-header">
+            <p class="section-label">Quick note</p>
+            <div class="note-strip-actions">
+              <button id="editQuickNoteBtn" class="note-action-btn hidden" type="button">Edit</button>
+              <button id="deleteQuickNoteBtn" class="note-action-btn note-action-delete hidden" type="button">Delete</button>
+            </div>
+          </div>
+          <div id="quickNoteViewMode">
+            <p id="quickNoteText"></p>
+          </div>
+          <div id="quickNoteEditMode" class="hidden">
+            <textarea id="inlineQuickNoteInput" rows="3" style="width:100%;margin-top:8px"></textarea>
+            <div class="note-edit-actions">
+              <button id="cancelQuickNoteInlineBtn" class="ghost-button" type="button">Cancel</button>
+              <button id="saveQuickNoteInlineBtn" class="primary-button" type="button">Save</button>
+            </div>
+          </div>
         </section>
 
         <section id="interestSection" class="interest-strip hidden">
-          <p class="section-label">Current interests</p>
-          <p id="interestText"></p>
+          <div class="note-strip-header">
+            <p class="section-label">Current interests</p>
+            <div class="note-strip-actions">
+              <button id="editInterestBtn" class="note-action-btn hidden" type="button">Edit</button>
+              <button id="deleteInterestBtn" class="note-action-btn note-action-delete hidden" type="button">Delete</button>
+            </div>
+          </div>
+          <div id="interestViewMode">
+            <p id="interestText"></p>
+          </div>
+          <div id="interestEditMode" class="hidden">
+            <textarea id="inlineInterestInput" rows="3" style="width:100%;margin-top:8px"></textarea>
+            <div class="note-edit-actions">
+              <button id="cancelInterestInlineBtn" class="ghost-button" type="button">Cancel</button>
+              <button id="saveInterestInlineBtn" class="primary-button" type="button">Save</button>
+            </div>
+          </div>
         </section>
 
         <section class="controls" aria-label="List controls">
@@ -328,6 +358,23 @@
           </div>
           <label>Interest note<textarea id="ownerInterest" rows="3"></textarea></label>
           <button id="saveInterestButton" class="secondary-button" type="button">Save interest note</button>
+
+          <label style="margin-top:12px">Quick note<textarea id="ownerQuickNote" rows="2"></textarea></label>
+          <button id="saveQuickNoteButton" class="secondary-button" type="button">Save quick note</button>
+
+          <section class="owner-section">
+            <div>
+              <h4>Export &amp; import</h4>
+              <p class="owner-help">Export saves a backup file of all gifts to your device. Import loads gifts from a previously exported wishyy file.</p>
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              <button id="exportListBtn" class="secondary-button" type="button">Export list</button>
+              <label class="secondary-button" style="cursor:pointer;display:inline-flex;align-items:center;justify-content:center">
+                Import list
+                <input id="importListInput" type="file" accept=".json" class="hidden">
+              </label>
+            </div>
+          </section>
           <section class="owner-section">
             <div><h4>Manage gifts</h4><p class="owner-help">Edit or delete gifts from the list.</p></div>
             <div id="ownerGiftsList" class="owner-list"></div>
@@ -339,6 +386,14 @@
             <label>Buying link<input id="giftUrl" required type="url" placeholder="https://..."></label>
             <label>Picture link<input id="giftImage" type="url" placeholder="https://..."></label>
             <label class="wide">Notes<textarea id="giftNote" rows="2" placeholder="Size, colour, exact version..."></textarea></label>
+            <label class="wide">
+              How much do you want this? <span class="field-optional">(optional)</span>
+              <div class="want-slider-wrap">
+                <input id="giftWant" type="range" min="1" max="10" step="1" class="want-slider">
+                <button type="button" class="ghost-button want-clear-btn" id="wantClearBtn">Clear</button>
+              </div>
+              <span id="wantLabel" class="want-display-label">Not set</span>
+            </label>
             <div class="wide form-actions">
               <button id="cancelEditButton" class="ghost-button hidden" type="button">Cancel edit</button>
               <button id="giftSubmitButton" class="primary-button" type="submit">Add gift</button>
