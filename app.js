@@ -1,14 +1,11 @@
 /* =====================================================
-   WISHYY — app.js — Phase 2
-   Multi-family, multi-list gift platform
+   WISHYY — app.js — Phase 2 (cross-device accounts)
    ===================================================== */
 'use strict';
 
-// ── STORAGE KEYS ──────────────────────────────────────────────
+// ── STORAGE KEYS (only non-sensitive session data) ────────────
 const LS = {
-  userId:       'wishyy.userId',
-  userName:     'wishyy.userName',
-  userPin:      'wishyy.userPin',
+  userId:       'wishyy.userId',      // just the ID, not pin/name
   familyCode:   'wishyy.familyCode',
   ownerSession: 'wishyy.ownerSession',
 };
@@ -16,14 +13,13 @@ const LS = {
 // ── STATE ─────────────────────────────────────────────────────
 let db   = null;
 let auth = null;
-let currentUser   = null; // { id, name, pin }
+let currentUser   = null; // { id, name, pinEncoded }
 let currentFamily = null; // { code, name, description, adminUserId }
 let currentList   = null; // { id, name, ownerUid, ownerEmail, ... }
 let giftsData     = {};
 let giftsRef      = null;
+let listsRef      = null;
 let ownerActive   = false;
-let pendingFamilyName = '';
-let pendingFamilyDesc = '';
 
 // ── UTILS ─────────────────────────────────────────────────────
 function uid() {
@@ -38,13 +34,7 @@ function makeFamilyCode() {
 }
 
 function encodePin(p) {
-  try { return btoa(unescape(encodeURIComponent(String(p)))); } catch { return btoa(p); }
-}
-function decodePin(p) {
-  try { return decodeURIComponent(escape(atob(p))); } catch { return '??'; }
-}
-function pinMatches(entered, stored) {
-  return encodePin(entered) === stored;
+  try { return btoa(unescape(encodeURIComponent(String(p)))); } catch { return btoa(String(p)); }
 }
 
 function $(id) { return document.getElementById(id); }
@@ -64,9 +54,13 @@ function setMsg(elId, text, ok = false) {
 }
 
 function fmtPrice(p) {
-  if (p === '' || p === null || p === undefined) return '';
   const n = parseFloat(p);
   return isNaN(n) ? '' : '$' + n.toFixed(2);
+}
+
+function setBtnLoading(btn, loading, label) {
+  btn.disabled = loading;
+  btn.textContent = loading ? 'Please wait...' : label;
 }
 
 // ── OWNER SESSION ─────────────────────────────────────────────
@@ -100,7 +94,7 @@ function initFirebase() {
     auth = firebase.auth();
     return true;
   } catch (e) {
-    console.warn('Firebase init failed:', e);
+    console.error('Firebase init failed:', e);
     return false;
   }
 }
@@ -117,19 +111,28 @@ async function boot() {
   initFirebase();
 
   const savedId   = localStorage.getItem(LS.userId);
-  const savedName = localStorage.getItem(LS.userName);
-  const savedPin  = localStorage.getItem(LS.userPin);
   const savedCode = localStorage.getItem(LS.familyCode);
 
-  if (savedId && savedName && savedPin) {
-    currentUser = { id: savedId, name: savedName, pin: savedPin };
-    if (savedCode) {
-      await goToFamily(savedCode);
-      return;
+  if (savedId && db) {
+    // Load user from Firebase using stored ID
+    try {
+      const snap = await db.ref(`users/${savedId}`).get();
+      if (snap.exists()) {
+        const u = snap.val();
+        currentUser = { id: savedId, name: u.name, pinEncoded: u.pinEncoded };
+        if (savedCode) {
+          await goToFamily(savedCode);
+          return;
+        }
+        showScreen('noFamilyScreen');
+        bindNoFamilyScreen();
+        return;
+      }
+    } catch (e) {
+      console.warn('Failed to load user from Firebase:', e);
     }
-    showScreen('noFamilyScreen');
-    bindNoFamilyScreen();
-    return;
+    // User not found in Firebase — clear stale ID
+    localStorage.removeItem(LS.userId);
   }
 
   showScreen('welcomeScreen');
@@ -140,8 +143,8 @@ async function boot() {
 function bindWelcomeScreen() {
   $('createTab').onclick = () => switchTab('create');
   $('returnTab').onclick = () => switchTab('return');
-  $('createForm').onsubmit = onCreateAccount;
-  $('returnForm').onsubmit = onReturnAccount;
+  $('createForm').onsubmit  = onCreateAccount;
+  $('returnForm').onsubmit  = onReturnAccount;
 }
 
 function switchTab(tab) {
@@ -154,76 +157,113 @@ function switchTab(tab) {
 
 async function onCreateAccount(e) {
   e.preventDefault();
-  const name   = $('newName').value.trim();
-  const pin    = $('newPin').value.trim();
-  const code   = $('newFamilyCode').value.trim().toUpperCase();
-  const btn    = e.target.querySelector('button[type=submit]');
-  const encodedPin = encodePin(pin);
+  const name  = $('newName').value.trim();
+  const pin   = $('newPin').value.trim();
+  const code  = $('newFamilyCode').value.trim().toUpperCase();
+  const btn   = e.target.querySelector('button[type=submit]');
 
   if (!name || !pin) return;
-  btn.disabled = true;
-  btn.textContent = 'Creating...';
+  setBtnLoading(btn, true, 'Create account');
+  setMsg('authMessage', '');
 
-  const userId = uid();
-  currentUser  = { id: userId, name, pin: encodedPin };
+  const pinEncoded = encodePin(pin);
+  const userId     = uid();
 
-  if (db) {
-    await db.ref(`users/${userId}`).set({ name, pin: encodedPin, createdAt: Date.now() });
-  }
-  localStorage.setItem(LS.userId,   userId);
-  localStorage.setItem(LS.userName, name);
-  localStorage.setItem(LS.userPin,  encodedPin);
+  currentUser = { id: userId, name, pinEncoded };
 
-  btn.disabled = false;
-  btn.textContent = 'Create account';
+  try {
+    if (db) {
+      await db.ref(`users/${userId}`).set({ name, pinEncoded, createdAt: Date.now() });
+    }
+    localStorage.setItem(LS.userId, userId);
+    setBtnLoading(btn, false, 'Create account');
 
-  if (code) {
-    await joinFamily(code, 'authMessage');
-  } else {
-    showScreen('noFamilyScreen');
-    bindNoFamilyScreen();
+    if (code) {
+      await joinFamily(code, 'authMessage');
+    } else {
+      showScreen('noFamilyScreen');
+      bindNoFamilyScreen();
+    }
+  } catch (err) {
+    setMsg('authMessage', 'Could not save your account. Check your connection.');
+    setBtnLoading(btn, false, 'Create account');
+    console.error('Create account error:', err);
   }
 }
 
 async function onReturnAccount(e) {
   e.preventDefault();
+  const name = $('returnName').value.trim();
   const pin  = $('returnPin').value.trim();
   const code = $('returnFamilyCode').value.trim().toUpperCase();
+  const btn  = e.target.querySelector('button[type=submit]');
 
-  const savedPin = localStorage.getItem(LS.userPin);
-  if (!savedPin) { setMsg('authMessage', 'No account found. Create one first.'); return; }
-  if (!pinMatches(pin, savedPin)) { setMsg('authMessage', 'Incorrect PIN.'); return; }
+  if (!name || !pin) { setMsg('authMessage', 'Please enter your name and PIN.'); return; }
+  setBtnLoading(btn, true, 'Sign in');
+  setMsg('authMessage', 'Looking up your account...');
 
-  currentUser = {
-    id:   localStorage.getItem(LS.userId),
-    name: localStorage.getItem(LS.userName),
-    pin:  savedPin,
-  };
+  const pinEncoded = encodePin(pin);
 
-  if (code) {
-    await joinFamily(code, 'authMessage');
-  } else {
-    const saved = localStorage.getItem(LS.familyCode);
-    if (saved) { await goToFamily(saved); }
-    else        { showScreen('noFamilyScreen'); bindNoFamilyScreen(); }
+  try {
+    if (!db) throw new Error('No database connection.');
+
+    // Query Firebase for user with matching name + pin
+    const snap = await db.ref('users')
+      .orderByChild('pinEncoded')
+      .equalTo(pinEncoded)
+      .get();
+
+    if (!snap.exists()) {
+      setMsg('authMessage', 'No account found with that PIN.');
+      setBtnLoading(btn, false, 'Sign in');
+      return;
+    }
+
+    let foundUser = null;
+    snap.forEach(child => {
+      const u = child.val();
+      if (u.name.toLowerCase() === name.toLowerCase()) {
+        foundUser = { id: child.key, ...u };
+      }
+    });
+
+    if (!foundUser) {
+      setMsg('authMessage', 'Name and PIN do not match. Check your details.');
+      setBtnLoading(btn, false, 'Sign in');
+      return;
+    }
+
+    currentUser = { id: foundUser.id, name: foundUser.name, pinEncoded: foundUser.pinEncoded };
+    localStorage.setItem(LS.userId, foundUser.id);
+    setBtnLoading(btn, false, 'Sign in');
+    setMsg('authMessage', '');
+
+    if (code) {
+      await joinFamily(code, 'authMessage');
+    } else {
+      const saved = localStorage.getItem(LS.familyCode);
+      if (saved) { await goToFamily(saved); }
+      else        { showScreen('noFamilyScreen'); bindNoFamilyScreen(); }
+    }
+  } catch (err) {
+    setMsg('authMessage', 'Something went wrong. Check your connection.');
+    setBtnLoading(btn, false, 'Sign in');
+    console.error('Sign in error:', err);
   }
 }
 
 // ── NO-FAMILY SCREEN ──────────────────────────────────────────
 function bindNoFamilyScreen() {
-  // Clone to avoid double-binding on re-visits
   replaceListener('joinFamilyForm', 'submit', async e => {
     e.preventDefault();
     const code = $('joinFamilyCode').value.trim().toUpperCase();
     if (!code) return;
     await joinFamily(code, 'noFamilyMessage');
   });
-
   replaceListener('createFamilyBtn', 'click', () => {
     resetCreateDialog();
     $('createFamilyDialog').showModal();
   });
-
   replaceListener('nfSignOut', 'click', hardSignOut);
 }
 
@@ -237,14 +277,17 @@ function replaceListener(id, event, fn) {
 
 async function joinFamily(code, msgId) {
   if (!code) { setMsg(msgId, 'Please enter a family code.'); return; }
-  if (db) {
+  if (!db)   { setMsg(msgId, 'No database connection.'); return; }
+  try {
     const snap = await db.ref(`families/${code}`).get();
     if (!snap.exists()) { setMsg(msgId, 'Family code not found. Check the code and try again.'); return; }
-    await db.ref(`userFamilies/${currentUser.id}/${code}`).set({ joinedAt: Date.now() });
     await db.ref(`familyMembers/${code}/${currentUser.id}`).set({ name: currentUser.name, joinedAt: Date.now() });
+    localStorage.setItem(LS.familyCode, code);
+    await goToFamily(code);
+  } catch (err) {
+    setMsg(msgId, 'Could not join family. Check your connection.');
+    console.error('Join family error:', err);
   }
-  localStorage.setItem(LS.familyCode, code);
-  await goToFamily(code);
 }
 
 // ── CREATE FAMILY DIALOG ──────────────────────────────────────
@@ -253,7 +296,7 @@ function bindCreateFamilyDialog() {
     e.preventDefault();
     const name = $('cfName').value.trim();
     if (!name) return;
-    // Store in dataset on dialog element — survives resetCreateDialog
+    // Store on the dialog element itself — survives step transitions
     $('createFamilyDialog').dataset.fname = name;
     $('createFamilyDialog').dataset.fdesc = $('cfDescription').value.trim();
     $('cfStep1').classList.add('hidden');
@@ -261,86 +304,116 @@ function bindCreateFamilyDialog() {
     $('cfFamilyNameDisplay').textContent = name;
   };
 
-  $('createListForm').onsubmit = async e => {
-    e.preventDefault();
-    // Read from dialog dataset — reliable across steps
-    const familyName = $('createFamilyDialog').dataset.fname || '';
-    const familyDesc = $('createFamilyDialog').dataset.fdesc || '';
-    if (!familyName) { msg.textContent = 'Family name is missing. Go back and enter it.'; return; }
-    const listName   = $('clListName').value.trim();
-    const email      = $('clEmail').value.trim();
-    const password   = $('clPassword').value.trim();
-    const msg        = $('createListMessage');
-
-    if (password.length < 6) { msg.textContent = 'Password must be at least 6 characters.'; return; }
-
-    msg.textContent = 'Creating your family...';
-
-    try {
-      let ownerUid = null;
-      if (auth) {
-        const cred = await auth.createUserWithEmailAndPassword(email, password);
-        ownerUid = cred.user.uid;
-        // Sign out AFTER db writes, not before
-      }
-
-      let code = makeFamilyCode();
-      if (db) {
-        while ((await db.ref(`families/${code}`).get()).exists()) code = makeFamilyCode();
-
-        const listId = db.ref('lists').push().key;
-
-        const adminId = currentUser.id;
-        await db.ref(`families/${code}`).set({
-          name: familyName,
-          description: familyDesc,
-          disclaimer: 'All of the lists in this family could have items on them that do not link to big sellers, companies, or brands like Amazon, Walmart, or Etsy. The responsibility is upon the owner of the list to view, examine, and determine if the links are safe to buy from. Any issues that come about from the used links do not fall back to the developer of the site',
-          adminUserId: adminId,
-          createdAt: Date.now(),
-        });
-        // Cache admin status locally so it works even before Firebase read returns
-        localStorage.setItem(`wishyy.admin.${code}`, adminId);
-
-        await db.ref(`lists/${listId}`).set({
-          familyCode: code,
-          name: listName,
-          ownerUid,
-          ownerEmail: email,
-          createdAt: Date.now(),
-          interestNote: '',
-          quickNote: '',
-        });
-
-        await db.ref(`userFamilies/${currentUser.id}/${code}`).set({ joinedAt: Date.now() });
-        await db.ref(`familyMembers/${code}/${currentUser.id}`).set({ name: currentUser.name, joinedAt: Date.now() });
-      }
-
-      // Sign out of Firebase Auth after all writes are done
-      if (auth) await auth.signOut().catch(() => {});
-
-      localStorage.setItem(LS.familyCode, code);
-      $('createFamilyDialog').close();
-      resetCreateDialog();
-      await goToFamily(code);
-
-    } catch (err) {
-      msg.textContent = err.message || 'Something went wrong. Try again.';
-    }
-  };
-
-  $('cfBack').onclick = () => {
+  $('createListForm').onsubmit  = onCreateListSubmit;
+  $('skipListBtn').onclick      = onSkipList;
+  $('cfBack').onclick           = () => {
     $('cfStep1').classList.remove('hidden');
     $('cfStep2').classList.add('hidden');
   };
-
-  $('cfCancel').onclick = () => {
-    $('createFamilyDialog').close();
-    resetCreateDialog();
-  };
-
+  $('cfCancel').onclick = () => { $('createFamilyDialog').close(); resetCreateDialog(); };
   $('createFamilyDialog').addEventListener('click', e => {
     if (e.target === $('createFamilyDialog')) { $('createFamilyDialog').close(); resetCreateDialog(); }
   });
+}
+
+async function doCreateFamily(listName, email, password) {
+  // Returns the new family code, or throws
+  const familyName = $('createFamilyDialog').dataset.fname || '';
+  const familyDesc = $('createFamilyDialog').dataset.fdesc || '';
+
+  if (!familyName) throw new Error('Family name missing. Go back and enter it.');
+
+  let code = makeFamilyCode();
+  // Ensure unique code
+  while ((await db.ref(`families/${code}`).get()).exists()) {
+    code = makeFamilyCode();
+  }
+
+  // Create Firebase Auth user for list owner (if list is being created)
+  let ownerUid = null;
+  if (listName && email && password) {
+    if (auth) {
+      const cred = await auth.createUserWithEmailAndPassword(email, password);
+      ownerUid = cred.user.uid;
+    }
+  }
+
+  // Write family
+  await db.ref(`families/${code}`).set({
+    name: familyName,
+    description: familyDesc,
+    disclaimer: 'All of the lists in this family could have items on them that do not link to big sellers, companies, or brands like Amazon, Walmart, or Etsy. The responsibility is upon the owner of the list to view, examine, and determine if the links are safe to buy from. Any issues that come about from the used links do not fall back to the developer of the site',
+    adminUserId: currentUser.id,
+    createdAt: Date.now(),
+  });
+
+  // Write first list (if not skipped)
+  if (listName) {
+    const listId = db.ref('lists').push().key;
+    await db.ref(`lists/${listId}`).set({
+      familyCode: code,
+      name: listName,
+      ownerUid,
+      ownerEmail: email,
+      createdAt: Date.now(),
+      interestNote: '',
+      quickNote: '',
+    });
+  }
+
+  // Add creator as member + cache admin
+  await db.ref(`familyMembers/${code}/${currentUser.id}`).set({ name: currentUser.name, joinedAt: Date.now() });
+  localStorage.setItem(`wishyy.admin.${code}`, currentUser.id);
+
+  // Sign out of Firebase Auth (we only created the owner user, not signing in as them)
+  if (auth) await auth.signOut().catch(() => {});
+
+  return code;
+}
+
+async function onCreateListSubmit(e) {
+  e.preventDefault();
+  const listName = $('clListName').value.trim();
+  const email    = $('clEmail').value.trim();
+  const password = $('clPassword').value.trim();
+  const msg      = $('createListMessage');
+  const btn      = e.target.querySelector('button[type=submit]');
+
+  if (password.length < 6) { msg.textContent = 'Password must be at least 6 characters.'; return; }
+
+  setBtnLoading(btn, true, 'Create family and list');
+  msg.textContent = 'Creating your family...';
+
+  try {
+    const code = await doCreateFamily(listName, email, password);
+    localStorage.setItem(LS.familyCode, code);
+    $('createFamilyDialog').close();
+    resetCreateDialog();
+    await goToFamily(code);
+  } catch (err) {
+    msg.textContent = err.message || 'Something went wrong. Try again.';
+    setBtnLoading(btn, false, 'Create family and list');
+    console.error('Create family error:', err);
+  }
+}
+
+async function onSkipList() {
+  const msg = $('createListMessage');
+  const btn = $('skipListBtn');
+  setBtnLoading(btn, true, 'Skip for now');
+  msg.textContent = 'Creating your family...';
+
+  try {
+    const code = await doCreateFamily('', '', '');
+    localStorage.setItem(LS.familyCode, code);
+    $('createFamilyDialog').close();
+    resetCreateDialog();
+    await goToFamily(code);
+  } catch (err) {
+    msg.textContent = err.message || 'Something went wrong.';
+    setBtnLoading(btn, false, 'Skip for now');
+    console.error('Skip list error:', err);
+  }
 }
 
 function resetCreateDialog() {
@@ -349,7 +422,6 @@ function resetCreateDialog() {
   $('createFamilyForm').reset();
   $('createListForm').reset();
   $('createListMessage').textContent = '';
-  // Clear dataset storage
   delete $('createFamilyDialog').dataset.fname;
   delete $('createFamilyDialog').dataset.fdesc;
 }
@@ -361,21 +433,20 @@ function bindAddListDialog() {
     $('addListMessage').textContent = '';
     $('addListDialog').showModal();
   };
-
   $('addListCancel').onclick = () => $('addListDialog').close();
-
   $('addListDialog').addEventListener('click', e => {
     if (e.target === $('addListDialog')) $('addListDialog').close();
   });
-
   $('addListForm').onsubmit = async e => {
     e.preventDefault();
     const listName = $('alListName').value.trim();
     const email    = $('alEmail').value.trim();
     const password = $('alPassword').value.trim();
     const msg      = $('addListMessage');
+    const btn      = e.target.querySelector('button[type=submit]');
 
     if (password.length < 6) { msg.textContent = 'Password must be at least 6 characters.'; return; }
+    setBtnLoading(btn, true, 'Create list');
     msg.textContent = 'Creating list...';
 
     try {
@@ -383,23 +454,28 @@ function bindAddListDialog() {
       if (auth) {
         const cred = await auth.createUserWithEmailAndPassword(email, password);
         ownerUid = cred.user.uid;
-        await auth.signOut();
       }
-      if (db) {
-        const listId = db.ref('lists').push().key;
-        await db.ref(`lists/${listId}`).set({
-          familyCode: currentFamily.code,
-          name: listName,
-          ownerUid,
-          ownerEmail: email,
-          createdAt: Date.now(),
-          interestNote: '',
-          quickNote: '',
-        });
-      }
+
+      const listId = db.ref('lists').push().key;
+      await db.ref(`lists/${listId}`).set({
+        familyCode: currentFamily.code,
+        name: listName,
+        ownerUid,
+        ownerEmail: email,
+        createdAt: Date.now(),
+        interestNote: '',
+        quickNote: '',
+      });
+
+      if (auth) await auth.signOut().catch(() => {});
+
       $('addListDialog').close();
+      $('addListForm').reset();
+      msg.textContent = '';
     } catch (err) {
       msg.textContent = err.message || 'Something went wrong.';
+      setBtnLoading(btn, false, 'Create list');
+      console.error('Add list error:', err);
     }
   };
 }
@@ -416,32 +492,48 @@ async function goToFamily(code) {
     return;
   }
 
-  const snap = await db.ref(`families/${code}`).get();
-  if (!snap.exists()) {
-    setMsg('authMessage', 'Family not found. Try a different code.');
-    localStorage.removeItem(LS.familyCode);
-    showScreen('welcomeScreen');
-    bindWelcomeScreen();
-    return;
-  }
+  try {
+    const snap = await db.ref(`families/${code}`).get();
+    if (!snap.exists()) {
+      setMsg('authMessage', 'Family not found.');
+      localStorage.removeItem(LS.familyCode);
+      showScreen('welcomeScreen');
+      bindWelcomeScreen();
+      return;
+    }
 
-  currentFamily = { code, ...snap.val() };
-  // Cache admin status locally for reliable button display
-  if (currentFamily.adminUserId) {
-    localStorage.setItem(`wishyy.admin.${code}`, currentFamily.adminUserId);
-  }
-  renderFamilyHeader();
-  showScreen('familyScreen');
-  setSyncStatus('online', 'Connected');
+    currentFamily = { code, ...snap.val() };
 
-  db.ref('lists').orderByChild('familyCode').equalTo(code).on('value', snap => {
-    renderListCards(snap.val() || {});
-  });
+    // Cache admin for reliable button display
+    if (currentFamily.adminUserId) {
+      localStorage.setItem(`wishyy.admin.${code}`, currentFamily.adminUserId);
+    }
+
+    renderFamilyHeader();
+    showScreen('familyScreen');
+    setSyncStatus('online', 'Connected');
+
+    // Listen for lists — with client-side fallback
+    if (listsRef) listsRef.off();
+    listsRef = db.ref('lists');
+    listsRef.on('value', snap => {
+      const all   = snap.val() || {};
+      // Filter client-side so we don't depend on the index
+      const mine  = Object.fromEntries(
+        Object.entries(all).filter(([, l]) => l.familyCode === code)
+      );
+      renderListCards(mine);
+    });
+  } catch (err) {
+    console.error('goToFamily error:', err);
+    setMsg('authMessage', 'Could not load family. Check your connection.');
+  }
 }
 
 function renderFamilyHeader() {
-  $('familyPageName').textContent = currentFamily.name;
-  $('familyPageCode').textContent = currentFamily.code;
+  $('familyPageName').textContent = currentFamily.name || 'My Family';
+  $('familyPageCode').textContent = currentFamily.code || '';
+
   const descWrap = $('familyPageDescWrap');
   if (currentFamily.description) {
     $('familyPageDesc').textContent = currentFamily.description;
@@ -449,7 +541,8 @@ function renderFamilyHeader() {
   } else {
     descWrap.classList.add('hidden');
   }
-  // Show family admin button only to the admin
+
+  // Show admin button only to the admin
   const adminBtn = $('familyAdminBtn');
   if (adminBtn) {
     const cachedAdmin = localStorage.getItem(`wishyy.admin.${currentFamily.code}`);
@@ -464,14 +557,11 @@ function renderFamilyHeader() {
 function renderListCards(lists) {
   const container = $('familyListCards');
   container.innerHTML = '';
-
   const entries = Object.entries(lists);
-
   if (!entries.length) {
-    container.innerHTML = `<p class="empty-note">No lists yet — use <strong>+ New list</strong> to create one.</p>`;
+    container.innerHTML = `<p class="empty-note">No lists yet — use <strong>+ New list</strong> to add one.</p>`;
     return;
   }
-
   entries
     .sort(([,a],[,b]) => (a.createdAt||0) - (b.createdAt||0))
     .forEach(([listId, list]) => {
@@ -496,28 +586,25 @@ function bindFamilyPage() {
   bindFamilyAdminDialog();
 }
 
+// ── FAMILY ADMIN ──────────────────────────────────────────────
 function bindFamilyAdminDialog() {
   const btn = $('familyAdminBtn');
   if (!btn) return;
-
   btn.addEventListener('click', () => {
-    $('faName').value = currentFamily.name || '';
+    $('faName').value        = currentFamily.name || '';
     $('faDescription').value = currentFamily.description || '';
     $('faMessage').textContent = '';
     $('familyAdminDialog').showModal();
   });
-
   $('faCancel').onclick = () => $('familyAdminDialog').close();
   $('familyAdminDialog').addEventListener('click', e => {
     if (e.target === $('familyAdminDialog')) $('familyAdminDialog').close();
   });
-
   $('familyAdminForm').onsubmit = async e => {
     e.preventDefault();
     const name = $('faName').value.trim();
     const desc = $('faDescription').value.trim();
     if (!name) return;
-
     if (db && currentFamily) {
       await db.ref(`families/${currentFamily.code}`).update({ name, description: desc });
       currentFamily.name = name;
@@ -532,11 +619,7 @@ function bindFamilyAdminDialog() {
 function handleListClick(listId, list) {
   const relKey = `wishyy.rel.${listId}`;
   const saved  = localStorage.getItem(relKey);
-
-  if (saved !== null) {
-    openList(listId, list);
-    return;
-  }
+  if (saved !== null) { openList(listId, list); return; }
 
   $('relListName').textContent = list.name;
   $('relInput').value = '';
@@ -548,7 +631,6 @@ function handleListClick(listId, list) {
     $('relationDialog').close();
     openList(listId, list);
   };
-
   $('relSkip').onclick = () => {
     localStorage.setItem(relKey, '');
     $('relationDialog').close();
@@ -559,12 +641,10 @@ function handleListClick(listId, list) {
 // ── GIFT SCREEN ───────────────────────────────────────────────
 function openList(listId, list) {
   currentList = { id: listId, ...list };
-  localStorage.setItem('wishyy.listId', listId);
-
   const rel = localStorage.getItem(`wishyy.rel.${listId}`);
   $('helloText').textContent = rel
-    ? `Welcome, ${currentUser.name} (${rel})`
-    : `Welcome, ${currentUser.name}`;
+    ? `${currentUser.name} (${rel})`
+    : currentUser.name;
 
   const session = getOwnerSession();
   ownerActive = !!(session && session.listId === listId);
@@ -582,9 +662,8 @@ function loadListMeta(listId) {
     const data = snap.val();
     $('interestText').textContent = data.interestNote || '';
     $('interestSection').classList.toggle('hidden', !data.interestNote);
-    const hasNote = !!data.quickNote;
-    if (hasNote) $('quickNoteText').textContent = data.quickNote;
-    $('disclaimerStrip').classList.toggle('hidden', !hasNote);
+    if (data.quickNote) $('quickNoteText').textContent = data.quickNote;
+    $('disclaimerStrip').classList.toggle('hidden', !data.quickNote);
   });
 }
 
@@ -604,16 +683,13 @@ function renderGifts() {
   const filter = $('filterSelect')?.value || 'all';
 
   let entries = Object.entries(giftsData);
-
   if (filter === 'available') entries = entries.filter(([,g]) => !g.boughtBy);
   if (filter === 'bought')    entries = entries.filter(([,g]) =>  g.boughtBy);
-
   if (search) entries = entries.filter(([,g]) =>
     (g.name||'').toLowerCase().includes(search) ||
     (g.store||'').toLowerCase().includes(search) ||
     (g.note||'').toLowerCase().includes(search)
   );
-
   if (sort === 'priceLow')  entries.sort(([,a],[,b]) => (a.price||0)-(b.price||0));
   if (sort === 'priceHigh') entries.sort(([,a],[,b]) => (b.price||0)-(a.price||0));
   if (sort === 'alpha')     entries.sort(([,a],[,b]) => (a.name||'').localeCompare(b.name||''));
@@ -631,7 +707,6 @@ function renderGifts() {
   entries.forEach(([id, gift]) => {
     const isBought = !!gift.boughtBy;
     const isMine   = gift.boughtBy === currentUser?.id;
-
     const card = document.createElement('div');
     card.className = `gift-card${isBought ? ' bought' : ''}`;
 
@@ -644,7 +719,7 @@ function renderGifts() {
       : '';
 
     const actionsHtml = isBought
-      ? (isMine ? `<button class="ghost-button undo-btn" data-id="${id}">Undo bought</button>` : `<span class="bought-label">Bought</span>`)
+      ? (isMine ? `<button class="ghost-button undo-btn" data-id="${id}">Undo</button>` : `<span class="bought-label">Bought</span>`)
       : `<button class="primary-button buy-btn" data-id="${id}" data-name="${gift.name}">I bought this</button>`;
 
     const ownerHtml = ownerActive
@@ -681,11 +756,9 @@ function renderGifts() {
 // ── BUY DIALOG ────────────────────────────────────────────────
 function openBuyDialog(giftId, giftName) {
   $('buyDialogText').textContent = `Mark "${giftName}" as bought?`;
-  const dialog = $('buyDialog');
-  dialog.showModal();
-
+  $('buyDialog').showModal();
   $('confirmBoughtButton').onclick = async () => {
-    dialog.close();
+    $('buyDialog').close();
     if (db) await db.ref(`gifts/${currentList.id}/${giftId}`).update({
       boughtBy: currentUser.id,
       boughtAt: Date.now(),
@@ -701,19 +774,16 @@ async function undoBought(giftId) {
 // ── OWNER TOOLS ───────────────────────────────────────────────
 function bindOwnerTools() {
   $('ownerButton').addEventListener('click', () => {
-    if (ownerActive) {
-      showOwnerPanel();
-    } else {
-      $('ownerUnlockForm').classList.remove('hidden');
-      $('ownerPanel').classList.add('hidden');
-      $('ownerMessage').textContent = '';
-      $('ownerDialog').showModal();
-    }
+    if (ownerActive) { showOwnerPanel(); return; }
+    $('ownerUnlockForm').classList.remove('hidden');
+    $('ownerPanel').classList.add('hidden');
+    $('ownerMessage').textContent = '';
+    $('ownerEmailInput').value = $('ownerPasswordInput').value = '';
+    $('ownerDialog').showModal();
   });
 
   $('ownerCloseButton').addEventListener('click', () => $('ownerDialog').close());
   $('ownerDoneButton').addEventListener('click', () => $('ownerDialog').close());
-
   $('ownerDialog').addEventListener('click', e => {
     if (e.target === $('ownerDialog')) $('ownerDialog').close();
   });
@@ -723,9 +793,7 @@ function bindOwnerTools() {
     const email    = $('ownerEmailInput').value.trim();
     const password = $('ownerPasswordInput').value.trim();
     const msg      = $('ownerMessage');
-
     if (!auth) { msg.textContent = 'Firebase not available.'; return; }
-
     try {
       const cred = await auth.signInWithEmailAndPassword(email, password);
       if (currentList.ownerUid && cred.user.uid !== currentList.ownerUid) {
@@ -759,7 +827,6 @@ function bindOwnerTools() {
       image: $('giftImage').value.trim(),
       note:  $('giftNote').value.trim(),
     };
-
     if (editId) {
       await db.ref(`gifts/${currentList.id}/${editId}`).update(data);
       delete $('giftForm').dataset.editId;
@@ -784,15 +851,18 @@ function showOwnerPanel() {
   $('ownerUnlockForm').classList.add('hidden');
   $('ownerPanel').classList.remove('hidden');
   $('ownerDialog').showModal();
-
   if (db && currentList) {
     db.ref(`lists/${currentList.id}/interestNote`).get()
       .then(s => { $('ownerInterest').value = s.val() || ''; });
   }
-
   const giftsList = $('ownerGiftsList');
   giftsList.innerHTML = '';
-  Object.entries(giftsData).forEach(([id, g]) => {
+  const entries = Object.entries(giftsData);
+  if (!entries.length) {
+    giftsList.innerHTML = '<p style="color:var(--muted);margin:0">No gifts yet.</p>';
+    return;
+  }
+  entries.forEach(([id, g]) => {
     const row = document.createElement('div');
     row.className = 'owner-list-row';
     row.innerHTML = `
@@ -805,10 +875,6 @@ function showOwnerPanel() {
     row.querySelector('[data-del]').onclick  = () => deleteGift(id);
     giftsList.appendChild(row);
   });
-
-  if (!Object.keys(giftsData).length) {
-    giftsList.innerHTML = '<p style="color:var(--muted);margin:0">No gifts yet.</p>';
-  }
 }
 
 function startEditGift(id) {
@@ -833,27 +899,23 @@ async function deleteGift(id) {
 
 // ── SIGN OUT ──────────────────────────────────────────────────
 function hardSignOut() {
-  // Signs out of family/list session + owner tools
-  // but KEEPS the account in localStorage so they can sign back in with their PIN
   clearOwnerSession();
   if (giftsRef) { giftsRef.off(); giftsRef = null; }
+  if (listsRef) { listsRef.off(); listsRef = null; }
   currentList = currentFamily = null;
   giftsData = {};
   ownerActive = false;
-
-  // Keep userId/userName/userPin so they can sign back in
   localStorage.removeItem(LS.familyCode);
-  localStorage.removeItem('wishyy.listId');
 
   showScreen('welcomeScreen');
-  // Switch to "Use my PIN" tab since they have an existing account
   $('returnTab').classList.add('active');
   $('createTab').classList.remove('active');
   $('returnForm').classList.remove('hidden');
   $('createForm').classList.add('hidden');
   setMsg('authMessage', '');
   $('returnPin').value = '';
-  $('returnFamilyCode').value = '';
+  $('returnName').value = '';
+  if ($('returnFamilyCode')) $('returnFamilyCode').value = '';
 }
 
 // ── CONTROLS ─────────────────────────────────────────────────

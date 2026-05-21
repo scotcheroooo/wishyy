@@ -26,16 +26,9 @@
       }
     },
     "users": {
-      "$userId": {
-        ".read": true,
-        ".write": true
-      }
-    },
-    "userFamilies": {
-      "$userId": {
-        ".read": true,
-        ".write": true
-      }
+      ".read": true,
+      ".write": true,
+      ".indexOn": ["pinEncoded"]
     }
   }
 }
