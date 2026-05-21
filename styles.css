@@ -1,8 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Lato:wght@400;700&family=Pacifico&family=DM+Serif+Display:ital@0;1&family=Nunito:wght@400;600;700;800&display=swap');
 
 :root {
-  --font-display: 'Playfair Display', Georgia, serif;
-  --font-body: 'Lato', sans-serif;
+  --font-display: 'DM Serif Display', Georgia, serif;
+  --font-body: 'Nunito', sans-serif;
   --ink: #2d1f2e; --muted: #7a5f7c; --paper: #fdf6fb; --panel: #ffffff;
   --line: #e8d5ea; --accent: #9b4dca; --accent-strong: #7b2fa8;
   --warning: #b84040; --soft: #f5eafa; --gold: #c4836a;
@@ -1877,4 +1877,67 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   .family-members-list { gap: 6px; }
   .dev-console-modal { width: calc(100% - 16px); max-height: 90vh; padding: 16px; }
   .dev-table { font-size: 0.78rem; }
+}
+
+/* ── MEMBER CHIPS WITH ADMIN ACTIONS ── */
+.family-member-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.member-admin-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  color: var(--accent);
+  font-family: var(--font-body);
+}
+
+.member-actions {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.member-action-btn {
+  padding: 2px 7px;
+  border-radius: 5px;
+  border: 1px solid var(--line);
+  background: transparent;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  color: var(--muted);
+  font-family: var(--font-body);
+  transition: all 0.15s;
+}
+
+.member-action-btn[data-ban]:hover    { color: var(--warning); border-color: var(--warning); }
+.member-action-btn[data-transfer]:hover { color: var(--accent); border-color: var(--accent); }
+
+/* ── FONT LOCK TOGGLE ── */
+.font-lock-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: var(--font-body);
+}
+.font-lock-btn:hover { border-color: var(--accent); color: var(--accent); }
+.font-lock-btn.font-locked {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-color: var(--accent);
+  color: var(--accent-strong);
 }

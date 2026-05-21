@@ -22,6 +22,7 @@
             </svg>
           </span>
         </label>
+        <button id="fontLockToggle" class="font-lock-btn" type="button">Fonts: theme</button>
         <button id="themesButton" class="themes-btn" type="button">
           themes
           <div class="star-1"><svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" version="1.1" style="shape-rendering:geometricPrecision;text-rendering:geometricPrecision;image-rendering:optimizeQuality;fill-rule:evenodd;clip-rule:evenodd" viewBox="0 0 784.11 815.53"><g><path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path></g></svg></div>
@@ -510,6 +511,10 @@
           <label>
             Description <span class="field-optional">(optional)</span>
             <textarea id="faDescription" rows="2" placeholder="e.g. For the whole extended family"></textarea>
+          </label>
+          <label>
+            Max members <span class="field-optional">(optional)</span>
+            <input id="faMaxMembers" type="number" min="1" max="500" placeholder="Leave blank for unlimited">
           </label>
           <p id="faMessage" class="message"></p>
           <div class="modal-actions">

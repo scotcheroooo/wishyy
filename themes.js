@@ -59,8 +59,23 @@ const DARK_THEMES = [
 const MODE_KEY  = 'wishyy.mode.v1';
 const THEME_KEY = 'wishyy.theme.v1';
 
-function getSavedMode()  { return localStorage.getItem(MODE_KEY)  || 'light'; }
-function getSavedTheme() { return localStorage.getItem(THEME_KEY) || 'fairy'; }
+const FONT_LOCK_KEY = 'wishyy.fontLock.v1';
+
+function getSavedMode() {
+  const saved = localStorage.getItem(MODE_KEY);
+  if (saved) return saved;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function getSavedTheme() { return localStorage.getItem(THEME_KEY) || null; }
+
+function getDefaultTheme(mode) {
+  return mode === 'dark' ? 'darkforest' : 'forest';
+}
+
+function isFontLocked() {
+  return localStorage.getItem(FONT_LOCK_KEY) === 'true';
+}
 
 function applyMode(mode) {
   document.documentElement.setAttribute('data-mode', mode);
@@ -70,15 +85,38 @@ function applyMode(mode) {
   if (toggle) toggle.checked = mode === 'light';
 }
 
-function applyTheme(theme) {
+function applyTheme(theme, skipFontSave) {
   const all = [...LIGHT_THEMES, ...DARK_THEMES];
   const found = all.find(t => t.value === theme);
-  if (found && theme !== 'fairy' && theme !== 'midnight') {
-    document.documentElement.setAttribute('data-theme', theme);
+
+  if (isFontLocked()) {
+    // Apply theme but preserve the default font
+    const mode = document.documentElement.getAttribute('data-mode') || 'light';
+    // Store previous font vars, apply theme, then re-override fonts
+    if (found && theme !== 'forest' && theme !== 'darkforest') {
+      document.documentElement.setAttribute('data-theme', theme);
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+    }
+    // Enforce default font via style override
+    const defaultFont = mode === 'dark'
+      ? "'DM Serif Display', Georgia, serif"
+      : "'DM Serif Display', Georgia, serif";
+    const defaultBody = "'Nunito', sans-serif";
+    document.documentElement.style.setProperty('--font-display', defaultFont);
+    document.documentElement.style.setProperty('--font-body', defaultBody);
   } else {
-    document.documentElement.removeAttribute('data-theme');
+    // Normal — let theme control fonts
+    document.documentElement.style.removeProperty('--font-display');
+    document.documentElement.style.removeProperty('--font-body');
+    if (found && theme !== 'forest' && theme !== 'darkforest') {
+      document.documentElement.setAttribute('data-theme', theme);
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+    }
   }
-  localStorage.setItem(THEME_KEY, theme);
+
+  if (!skipFontSave) localStorage.setItem(THEME_KEY, theme);
 }
 
 function buildThemeDialog() {
@@ -132,16 +170,46 @@ function initThemes() {
 
   const lightVals = LIGHT_THEMES.map(t => t.value);
   const darkVals  = DARK_THEMES.map(t => t.value);
-  if (mode === 'light' && !lightVals.includes(theme)) theme = 'fairy';
-  if (mode === 'dark'  && !darkVals.includes(theme))  theme = 'midnight';
+  // Default themes: Enchanted Forest (light), Dark Forest (dark)
+  if (!theme || (mode === 'light' && !lightVals.includes(theme))) theme = getDefaultTheme('light');
+  if (mode === 'dark' && !darkVals.includes(theme)) theme = getDefaultTheme('dark');
 
   applyMode(mode);
   applyTheme(theme);
 
+  // Font lock toggle
+  const fontLockBtn = document.getElementById('fontLockToggle');
+  if (fontLockBtn) {
+    fontLockBtn.textContent = isFontLocked() ? 'Fonts: locked' : 'Fonts: theme';
+    fontLockBtn.classList.toggle('font-locked', isFontLocked());
+    fontLockBtn.addEventListener('click', () => {
+      const nowLocked = !isFontLocked();
+      localStorage.setItem(FONT_LOCK_KEY, nowLocked);
+      fontLockBtn.textContent = nowLocked ? 'Fonts: locked' : 'Fonts: theme';
+      fontLockBtn.classList.toggle('font-locked', nowLocked);
+      // Re-apply current theme to trigger font logic
+      const currentTheme = getSavedTheme() || getDefaultTheme(getSavedMode());
+      applyTheme(currentTheme);
+    });
+  }
+
+  // Listen for system theme changes — only if user hasn't set a manual preference
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+    if (!localStorage.getItem(MODE_KEY)) {
+      const next = e.matches ? 'dark' : 'light';
+      const newTheme = getDefaultTheme(next);
+      applyMode(next);
+      applyTheme(newTheme);
+      const tog = document.getElementById('modeToggle');
+      if (tog) tog.checked = next === 'light';
+    }
+  });
+
   document.getElementById('modeToggle')?.addEventListener('change', function() {
     // UIverse: checked = light, unchecked = dark
     const next     = this.checked ? 'light' : 'dark';
-    const newTheme = next === 'dark' ? 'midnight' : 'fairy';
+    const newTheme = getDefaultTheme(next);
+    localStorage.setItem(MODE_KEY, next);
     applyMode(next);
     applyTheme(newTheme);
   });
