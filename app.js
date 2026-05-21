@@ -303,32 +303,41 @@ async function onReturnAccount(e) {
 
 // ── HUB SCREEN ───────────────────────────────────────────────
 async function showHub() {
+  history.pushState({ screen: 'hub' }, '');
   showScreen('hubScreen');
   $('hubUserName').textContent = currentUser.name;
+  const container = $('hubFamilyCards');
+  container.innerHTML = '<p class="muted-note">Loading your families...</p>';
 
-  // Load families this user is in
   if (!db) return;
   try {
-    const allFamsSnap  = await db.ref('familyMembers').get();
-    const allListsSnap = await db.ref('lists').get();
+    // Use familyMembers root scan (rules now allow root read)
+    const [famMembersSnap, allListsSnap] = await Promise.all([
+      db.ref('familyMembers').get(),
+      db.ref('lists').get(),
+    ]);
+
+    const allLists = allListsSnap.val() || {};
     const allFamilyData = {};
 
-    // Find families where this user is a member
-    if (allFamsSnap.exists()) {
-      const famMembersData = allFamsSnap.val();
+    if (famMembersSnap.exists()) {
+      const famMembersData = famMembersSnap.val();
+      const fetchPromises = [];
       for (const [code, members] of Object.entries(famMembersData)) {
         if (members[currentUser.id]) {
-          // Get family details
-          const famSnap = await db.ref(`families/${code}`).get();
-          if (famSnap.exists()) {
-            allFamilyData[code] = famSnap.val();
-          }
+          fetchPromises.push(
+            db.ref(`families/${code}`).get().then(snap => {
+              if (snap.exists()) allFamilyData[code] = snap.val();
+            })
+          );
         }
       }
+      await Promise.all(fetchPromises);
     }
 
-    renderHubFamilies(allFamilyData, allListsSnap.val() || {});
+    renderHubFamilies(allFamilyData, allLists);
   } catch (err) {
+    container.innerHTML = '<p class="muted-note">Could not load families.</p>';
     console.error('Hub load error:', err);
   }
 }
@@ -403,7 +412,10 @@ async function joinFamily(code, msgId, goDirectly = false) {
   try {
     const snap = await db.ref(`families/${code}`).get();
     if (!snap.exists()) { setMsg(msgId, 'Family code not found. Check the code and try again.'); return; }
-    await db.ref(`familyMembers/${code}/${currentUser.id}`).set({ name: currentUser.name, joinedAt: Date.now() });
+    await Promise.all([
+      db.ref(`familyMembers/${code}/${currentUser.id}`).set({ name: currentUser.name, joinedAt: Date.now() }),
+      db.ref(`userFamilies/${currentUser.id}/${code}`).set({ joinedAt: Date.now() }),
+    ]);
     localStorage.setItem(LS.familyCode, code);
     if (goDirectly) {
       await goToFamily(code);
@@ -495,7 +507,10 @@ async function doCreateFamily(listName, email, password) {
   }
 
   // Add creator as member + cache admin
-  await db.ref(`familyMembers/${code}/${currentUser.id}`).set({ name: currentUser.name, joinedAt: Date.now() });
+  await Promise.all([
+    db.ref(`familyMembers/${code}/${currentUser.id}`).set({ name: currentUser.name, joinedAt: Date.now() }),
+    db.ref(`userFamilies/${currentUser.id}/${code}`).set({ joinedAt: Date.now() }),
+  ]);
   localStorage.setItem(`wishyy.admin.${code}`, currentUser.id);
 
   // Sign out of Firebase Auth (we only created the owner user, not signing in as them)
@@ -785,6 +800,7 @@ function openList(listId, list) {
   const session = getOwnerSession();
   ownerActive = !!(session && session.listId === listId);
 
+  history.pushState({ screen: 'gift', listId, familyCode: currentFamily?.code }, '');
   showScreen('giftScreen');
   setSyncStatus('online', 'Connected');
   loadListMeta(listId);
@@ -1160,6 +1176,7 @@ async function deleteGift(id) {
 
 // ── PROFILE ───────────────────────────────────────────────────
 async function showProfile() {
+  history.pushState({ screen: 'profile' }, '');
   showScreen('profileScreen');
   $('profileUserName').textContent = currentUser.name;
   $('profileStats').innerHTML = '<p class="muted-note">Loading your data...</p>';
@@ -1387,7 +1404,29 @@ function bindGiftControls() {
 }
 
 // ── INIT ──────────────────────────────────────────────────────
+window.addEventListener('popstate', async e => {
+  const state = e.state;
+  if (!state || !currentUser) {
+    // No state or no user — go to welcome screen
+    if (giftsRef) { giftsRef.off(); giftsRef = null; }
+    if (listsRef) { listsRef.off(); listsRef = null; }
+    showScreen('welcomeScreen');
+    return;
+  }
+  if (state.screen === 'hub')    { await showHub(); return; }
+  if (state.screen === 'profile') { await showProfile(); return; }
+  if (state.screen === 'family' && state.code) { await goToFamily(state.code); return; }
+  if (state.screen === 'gift' && state.listId) {
+    const snap = await db.ref(`lists/${state.listId}`).get();
+    if (snap.exists()) openList(state.listId, snap.val());
+    return;
+  }
+  showScreen('welcomeScreen');
+});
+
 document.addEventListener('DOMContentLoaded', async () => {
+  // Mark initial page load in history
+  history.replaceState({ screen: 'welcome' }, '');
   bindCreateFamilyDialog();
   bindFamilyPage();
   bindOwnerTools();
