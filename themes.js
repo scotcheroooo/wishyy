@@ -85,35 +85,64 @@ function applyMode(mode) {
   if (toggle) toggle.checked = mode === 'light';
 }
 
-function applyTheme(theme, skipFontSave) {
-  const all = [...LIGHT_THEMES, ...DARK_THEMES];
-  const found = all.find(t => t.value === theme);
+// Font data map — what fonts each theme uses
+const THEME_FONTS = {
+  forest:      { display: "'DM Serif Display', Georgia, serif",  body: "'Nunito', sans-serif" },
+  rosegold:    { display: "'Pacifico', cursive",                  body: "'Nunito', sans-serif" },
+  sakura:      { display: "'DM Serif Display', Georgia, serif",   body: "'Lato', sans-serif" },
+  sage:        { display: "'DM Serif Display', Georgia, serif",   body: "'Nunito', sans-serif" },
+  candy:       { display: "'Pacifico', cursive",                  body: "'Nunito', sans-serif" },
+  watermelon:  { display: "'Pacifico', cursive",                  body: "'Nunito', sans-serif" },
+  sand:        { display: "'DM Serif Display', Georgia, serif",   body: "'Lato', sans-serif" },
+  pistachio:   { display: "'DM Serif Display', Georgia, serif",   body: "'Nunito', sans-serif" },
+  honeydew:    { display: "'DM Serif Display', Georgia, serif",   body: "'Nunito', sans-serif" },
+  bubblegum:   { display: "'Pacifico', cursive",                  body: "'Nunito', sans-serif" },
+  darkforest:  { display: "'DM Serif Display', Georgia, serif",   body: "'Nunito', sans-serif" },
+  velvet:      { display: "'Pacifico', cursive",                  body: "'Nunito', sans-serif" },
+  ember:       { display: "'DM Serif Display', Georgia, serif",   body: "'Lato', sans-serif" },
+  neoncity:    { display: "'Nunito', sans-serif",                  body: "'Nunito', sans-serif" },
+  bloodmoon:   { display: "'DM Serif Display', Georgia, serif",   body: "'Lato', sans-serif" },
+  galaxy:      { display: "'Playfair Display', Georgia, serif",   body: "'Lato', sans-serif" },
+  darkrose:    { display: "'DM Serif Display', Georgia, serif",   body: "'Lato', sans-serif" },
+  witches:     { display: "'DM Serif Display', Georgia, serif",   body: "'Lato', sans-serif" },
+  amethyst:    { display: "'Playfair Display', Georgia, serif",   body: "'Lato', sans-serif" },
+  coppernight: { display: "'DM Serif Display', Georgia, serif",   body: "'Lato', sans-serif" },
+  noir:        { display: "'Playfair Display', Georgia, serif",   body: "'Lato', sans-serif" },
+  darksakura:  { display: "'Pacifico', cursive",                  body: "'Nunito', sans-serif" },
+  duskgold:    { display: "'DM Serif Display', Georgia, serif",   body: "'Lato', sans-serif" },
+  aurora:      { display: "'Nunito', sans-serif",                  body: "'Nunito', sans-serif" },
+  darklavender:{ display: "'Playfair Display', Georgia, serif",   body: "'Lato', sans-serif" },
+  stealth:     { display: "'Nunito', sans-serif",                  body: "'Nunito', sans-serif" },
+  wine:        { display: "'Playfair Display', Georgia, serif",   body: "'Lato', sans-serif" },
+  darkmint:    { display: "'DM Serif Display', Georgia, serif",   body: "'Lato', sans-serif" },
+};
 
-  if (isFontLocked()) {
-    // Apply theme but preserve the default font
-    const mode = document.documentElement.getAttribute('data-mode') || 'light';
-    // Store previous font vars, apply theme, then re-override fonts
-    if (found && theme !== 'forest' && theme !== 'darkforest') {
-      document.documentElement.setAttribute('data-theme', theme);
-    } else {
-      document.documentElement.removeAttribute('data-theme');
-    }
-    // Enforce default font via style override
-    const defaultFont = mode === 'dark'
-      ? "'DM Serif Display', Georgia, serif"
-      : "'DM Serif Display', Georgia, serif";
-    const defaultBody = "'Nunito', sans-serif";
-    document.documentElement.style.setProperty('--font-display', defaultFont);
-    document.documentElement.style.setProperty('--font-body', defaultBody);
+// Locked-to font — set when user locks; null = follow theme
+const LOCKED_FONT_KEY = 'wishyy.lockedFont.v1';
+
+function getLockedFont() {
+  try { return JSON.parse(localStorage.getItem(LOCKED_FONT_KEY)); } catch { return null; }
+}
+
+function applyTheme(theme, skipFontSave) {
+  // Apply the visual theme (colours)
+  const defaultThemes = ['forest', 'darkforest'];
+  if (theme && !defaultThemes.includes(theme)) {
+    document.documentElement.setAttribute('data-theme', theme);
   } else {
-    // Normal — let theme control fonts
+    document.documentElement.removeAttribute('data-theme');
+  }
+
+  // Font handling
+  const locked = getLockedFont();
+  if (locked) {
+    // Fixed to the font that was active when user locked it
+    document.documentElement.style.setProperty('--font-display', locked.display);
+    document.documentElement.style.setProperty('--font-body', locked.body);
+  } else {
+    // Let the theme's CSS control fonts
     document.documentElement.style.removeProperty('--font-display');
     document.documentElement.style.removeProperty('--font-body');
-    if (found && theme !== 'forest' && theme !== 'darkforest') {
-      document.documentElement.setAttribute('data-theme', theme);
-    } else {
-      document.documentElement.removeAttribute('data-theme');
-    }
   }
 
   if (!skipFontSave) localStorage.setItem(THEME_KEY, theme);
@@ -130,10 +159,22 @@ function buildThemeDialog() {
   const dialog = document.createElement('dialog');
   dialog.id = 'themeDialog';
   dialog.className = 'modal theme-dialog';
+  const locked = getLockedFont();
+  const isLocked = !!locked;
   dialog.innerHTML = `
     <div class="theme-dialog-header">
-      <h3>Choose a theme</h3>
+      <h3 style="color:var(--ink)">Choose a theme</h3>
       <button class="ghost-button theme-dialog-close" type="button">&#x2715;</button>
+    </div>
+    <div class="theme-font-toggle-row">
+      <span class="theme-font-toggle-label">Fix font to selected theme</span>
+      <label class="switch font-fix-switch" aria-label="Fix font to theme">
+        <input type="checkbox" id="fontFixToggle" ${isLocked ? 'checked' : ''}>
+        <span class="slider">
+          <div class="star star_1"></div><div class="star star_2"></div><div class="star star_3"></div>
+          <svg viewBox="0 0 16 16" class="cloud_1 cloud"><path transform="matrix(.77976 0 0 .78395-299.99-418.63)" fill="#fff" d="m391.84 540.91c-.421-.329-.949-.524-1.523-.524-1.351 0-2.451 1.084-2.485 2.435-1.395.526-2.388 1.88-2.388 3.466 0 1.874 1.385 3.423 3.182 3.667v.034h12.73v-.006c1.775-.104 3.182-1.584 3.182-3.395 0-1.747-1.309-3.186-2.994-3.379.007-.106.011-.214.011-.322 0-2.707-2.271-4.901-5.072-4.901-2.073 0-3.856 1.202-4.643 2.925"></path></svg>
+        </span>
+      </label>
     </div>
     <div class="theme-swatch-grid">
       ${themes.map(t => `
@@ -177,21 +218,7 @@ function initThemes() {
   applyMode(mode);
   applyTheme(theme);
 
-  // Font lock toggle
-  const fontLockBtn = document.getElementById('fontLockToggle');
-  if (fontLockBtn) {
-    fontLockBtn.textContent = isFontLocked() ? 'Fonts: locked' : 'Fonts: theme';
-    fontLockBtn.classList.toggle('font-locked', isFontLocked());
-    fontLockBtn.addEventListener('click', () => {
-      const nowLocked = !isFontLocked();
-      localStorage.setItem(FONT_LOCK_KEY, nowLocked);
-      fontLockBtn.textContent = nowLocked ? 'Fonts: locked' : 'Fonts: theme';
-      fontLockBtn.classList.toggle('font-locked', nowLocked);
-      // Re-apply current theme to trigger font logic
-      const currentTheme = getSavedTheme() || getDefaultTheme(getSavedMode());
-      applyTheme(currentTheme);
-    });
-  }
+  // Font lock toggle now lives inside the theme dialog — bound in buildThemeDialog()
 
   // Listen for system theme changes — only if user hasn't set a manual preference
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
