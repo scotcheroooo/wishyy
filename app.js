@@ -136,20 +136,24 @@ async function boot() {
   }
 
   showScreen('welcomeScreen');
-  bindWelcomeScreen();
 }
 
 // ── WELCOME SCREEN ────────────────────────────────────────────
 function bindWelcomeScreen() {
   $('createTab').onclick = () => switchTab('create');
   $('returnTab').onclick = () => switchTab('return');
-  $('createForm').onsubmit  = onCreateAccount;
-  $('returnForm').onsubmit  = onReturnAccount;
+  $('createForm').onsubmit = onCreateAccount;
+  $('returnForm').onsubmit = onReturnAccount;
+}
+
+// Bound once at startup — profile button is always available on the welcome screen
+function bindProfileQuickAccess() {
   $('profileQuickBtn')?.addEventListener('click', () => {
     $('profileQuickDialog').showModal();
     $('profileQuickPin').value = '';
     $('profileQuickMessage').textContent = '';
   });
+
   $('profileQuickForm')?.addEventListener('submit', async e => {
     e.preventDefault();
     const pin = $('profileQuickPin').value.trim();
@@ -158,6 +162,7 @@ function bindWelcomeScreen() {
     setBtnLoading(btn, true, 'Go to my profile');
     const pinEncoded = encodePin(pin);
     try {
+      if (!db) throw new Error('No database connection.');
       let foundUser = null;
       try {
         const snap = await db.ref('users').orderByChild('pinEncoded').equalTo(pinEncoded).get();
@@ -174,12 +179,15 @@ function bindWelcomeScreen() {
       currentUser = { id: foundUser.id, name: foundUser.name, pinEncoded: foundUser.pinEncoded };
       localStorage.setItem(LS.userId, foundUser.id);
       $('profileQuickDialog').close();
+      setBtnLoading(btn, false, 'Go to my profile');
       await showHub();
     } catch (err) {
       $('profileQuickMessage').textContent = `Error: ${err.message}`;
       setBtnLoading(btn, false, 'Go to my profile');
+      console.error('Profile quick access error:', err);
     }
   });
+
   $('profileQuickDialog')?.addEventListener('click', e => {
     if (e.target === $('profileQuickDialog')) $('profileQuickDialog').close();
   });
@@ -1342,7 +1350,7 @@ function hardSignOut() {
   localStorage.removeItem(LS.familyCode);
   currentUser = null;
 
-  showScreen('welcomeScreen');
+  // Reset welcome screen to PIN tab
   $('returnTab').classList.add('active');
   $('createTab').classList.remove('active');
   $('returnForm').classList.remove('hidden');
@@ -1350,6 +1358,7 @@ function hardSignOut() {
   setMsg('authMessage', '');
   $('returnPin').value = '';
   if ($('returnFamilyCode')) $('returnFamilyCode').value = '';
+  showScreen('welcomeScreen');
 }
 
 // ── CONTROLS ─────────────────────────────────────────────────
@@ -1384,5 +1393,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   bindOwnerTools();
   bindGiftControls();
   bindHubScreen();
+  bindProfileQuickAccess();
+  bindWelcomeScreen();
   await boot();
 });
