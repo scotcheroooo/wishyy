@@ -2,8 +2,8 @@
   "rules": {
     "families": {
       "$familyCode": {
-        ".read": "auth != null || true",
-        ".write": "auth != null || true"
+        ".read": true,
+        ".write": true
       }
     },
     "familyMembers": {
@@ -14,6 +14,7 @@
     },
     "lists": {
       ".read": true,
+      ".indexOn": ["familyCode"],
       "$listId": {
         ".write": true
       }
