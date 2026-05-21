@@ -1,6 +1,6 @@
 const LIGHT_THEMES = [
-  { value:'fairy',       label:'Fairy Garden',     accent:'#9b4dca', paper:'#fdf6fb' },
   { value:'forest',      label:'Enchanted Forest', accent:'#2e7d32', paper:'#f4faf2' },
+  { value:'fairy',       label:'Fairy Garden',     accent:'#9b4dca', paper:'#fdf6fb' },
   { value:'rosegold',    label:'Rose Gold',        accent:'#c0725a', paper:'#fdf8f5' },
   { value:'ocean',       label:'Ocean Mist',       accent:'#1a6fa8', paper:'#f4f9fc' },
   { value:'lavender',    label:'Lavender Fields',  accent:'#7c5cbf', paper:'#f8f5ff' },
@@ -29,8 +29,8 @@ const LIGHT_THEMES = [
 ];
 
 const DARK_THEMES = [
-  { value:'midnight',    label:'Midnight Fairy',   accent:'#c47dff', paper:'#1a0f1e' },
   { value:'darkforest',  label:'Dark Forest',      accent:'#4caf50', paper:'#0d180d' },
+  { value:'midnight',    label:'Midnight Fairy',   accent:'#c47dff', paper:'#1a0f1e' },
   { value:'velvet',      label:'Velvet Night',     accent:'#e040fb', paper:'#100818' },
   { value:'deepocean',   label:'Deep Ocean',       accent:'#40a8ff', paper:'#080e18' },
   { value:'ember',       label:'Ember',            accent:'#ff6030', paper:'#180a04' },
