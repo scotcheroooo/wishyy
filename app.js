@@ -289,8 +289,17 @@ async function onReturnAccount(e) {
     setBtnLoading(btn, false, 'Sign in');
     setMsg('authMessage', '');
 
+    if (code === 'DEV403') {
+      // Dev console — requires Firebase Auth, no credentials in JS
+      $('devAuthDialog').showModal();
+      $('devAuthMessage').textContent = '';
+      $('devAuthEmail').value = '';
+      $('devAuthPassword').value = '';
+      setBtnLoading(btn, false, 'Sign in');
+      return;
+    }
     if (code) {
-      await joinFamily(code, 'authMessage', true); // goDirectly = true
+      await joinFamily(code, 'authMessage', true);
     } else {
       await showHub();
     }
@@ -690,7 +699,6 @@ function renderFamilyHeader() {
     descWrap.classList.add('hidden');
   }
 
-  // Show admin button only to the admin
   const adminBtn = $('familyAdminBtn');
   if (adminBtn) {
     const cachedAdmin = localStorage.getItem(`wishyy.admin.${currentFamily.code}`);
@@ -699,6 +707,20 @@ function renderFamilyHeader() {
       cachedAdmin === currentUser.id
     );
     adminBtn.classList.toggle('hidden', !isAdmin);
+  }
+
+  // Load and render family members
+  if (db && currentFamily.code) {
+    db.ref(`familyMembers/${currentFamily.code}`).get().then(snap => {
+      const membersList = $('familyMembersList');
+      if (!membersList) return;
+      if (!snap.exists()) { membersList.innerHTML = ''; return; }
+      const members = Object.values(snap.val());
+      membersList.innerHTML = members
+        .sort((a, b) => (a.name||'').localeCompare(b.name||''))
+        .map(m => `<span class="family-member-chip">${m.name}</span>`)
+        .join('');
+    });
   }
 }
 
@@ -1289,6 +1311,200 @@ async function showProfile() {
   }
 }
 
+// ── DEV CONSOLE ──────────────────────────────────────────────
+let devActive = false;
+
+function bindDevConsole() {
+  $('devAuthDialog')?.addEventListener('click', e => {
+    if (e.target === $('devAuthDialog')) $('devAuthDialog').close();
+  });
+
+  $('devAuthForm')?.addEventListener('submit', async e => {
+    e.preventDefault();
+    const email    = $('devAuthEmail').value.trim();
+    const password = $('devAuthPassword').value.trim();
+    const msg      = $('devAuthMessage');
+    const btn      = e.target.querySelector('button[type=submit]');
+    setBtnLoading(btn, true, 'Sign in');
+
+    try {
+      if (!auth) throw new Error('Auth not available.');
+
+      // Sign in via Firebase Auth — credentials verified server-side
+      const cred = await auth.signInWithEmailAndPassword(email, password);
+      const uid  = cred.user.uid;
+
+      // Check against Firebase-stored dev UID — not hardcoded in JS
+      const devSnap = await db.ref(`devConfig/authorizedUid`).get();
+      if (!devSnap.exists() || devSnap.val() !== uid) {
+        await auth.signOut();
+        msg.textContent = 'Access denied.';
+        setBtnLoading(btn, false, 'Sign in');
+        return;
+      }
+
+      devActive = true;
+      $('devAuthDialog').close();
+      setBtnLoading(btn, false, 'Sign in');
+      await openDevConsole();
+
+    } catch (err) {
+      msg.textContent = err.code === 'auth/invalid-credential'
+        ? 'Incorrect email or password.'
+        : `Error: ${err.message}`;
+      setBtnLoading(btn, false, 'Sign in');
+    }
+  });
+
+  $('devCloseBtn')?.addEventListener('click', () => {
+    $('devConsoleDialog').close();
+    devActive = false;
+    if (auth) auth.signOut().catch(() => {});
+  });
+
+  $('devConsoleDialog')?.addEventListener('click', e => {
+    if (e.target === $('devConsoleDialog')) {
+      $('devConsoleDialog').close();
+      devActive = false;
+      if (auth) auth.signOut().catch(() => {});
+    }
+  });
+}
+
+async function openDevConsole() {
+  $('devConsoleDialog').showModal();
+  $('devLoadingMsg').textContent = 'Loading all data...';
+  $('devContent').innerHTML = '';
+
+  try {
+    const [usersSnap, familiesSnap, listsSnap, famMembersSnap] = await Promise.all([
+      db.ref('users').get(),
+      db.ref('families').get(),
+      db.ref('lists').get(),
+      db.ref('familyMembers').get(),
+    ]);
+
+    const users     = usersSnap.val()     || {};
+    const families  = familiesSnap.val()  || {};
+    const lists     = listsSnap.val()     || {};
+    const famMembers= famMembersSnap.val()|| {};
+
+    $('devLoadingMsg').textContent = '';
+
+    const html = `
+      <div class="dev-section">
+        <h4>All users (${Object.keys(users).length})</h4>
+        <div class="dev-table-wrap">
+          <table class="dev-table">
+            <thead><tr><th>Name</th><th>ID</th><th>PIN (encoded)</th><th>Actions</th></tr></thead>
+            <tbody>
+              ${Object.entries(users).map(([id, u]) => `
+                <tr>
+                  <td>${u.name}</td>
+                  <td class="dev-mono">${id}</td>
+                  <td class="dev-mono">${u.pinEncoded || '—'}</td>
+                  <td>
+                    <button class="dev-btn dev-danger" data-del-user="${id}">Delete</button>
+                  </td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="dev-section">
+        <h4>All families (${Object.keys(families).length})</h4>
+        <div class="dev-table-wrap">
+          <table class="dev-table">
+            <thead><tr><th>Name</th><th>Code</th><th>Admin user ID</th><th>Members</th><th>Actions</th></tr></thead>
+            <tbody>
+              ${Object.entries(families).map(([code, f]) => {
+                const memberNames = Object.values(famMembers[code] || {}).map(m => m.name).join(', ') || '—';
+                return `
+                <tr>
+                  <td>${f.name}</td>
+                  <td class="dev-mono">${code}</td>
+                  <td class="dev-mono">${f.adminUserId || '—'}</td>
+                  <td>${memberNames}</td>
+                  <td>
+                    <button class="dev-btn dev-accent" data-goto-family="${code}">Open</button>
+                    <button class="dev-btn dev-danger" data-del-family="${code}">Delete</button>
+                  </td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="dev-section">
+        <h4>All lists (${Object.keys(lists).length})</h4>
+        <div class="dev-table-wrap">
+          <table class="dev-table">
+            <thead><tr><th>Name</th><th>Family</th><th>Owner email</th><th>Actions</th></tr></thead>
+            <tbody>
+              ${Object.entries(lists).map(([id, l]) => `
+                <tr>
+                  <td>${l.name}</td>
+                  <td class="dev-mono">${l.familyCode || '—'}</td>
+                  <td>${l.ownerEmail || '—'}</td>
+                  <td>
+                    <button class="dev-btn dev-danger" data-del-list="${id}">Delete</button>
+                  </td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+
+    $('devContent').innerHTML = html;
+
+    // Bind actions
+    $('devContent').querySelectorAll('[data-del-user]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.delUser;
+        if (!confirm(`Delete user ${users[id]?.name}? This cannot be undone.`)) return;
+        await db.ref(`users/${id}`).remove();
+        btn.closest('tr').remove();
+      });
+    });
+
+    $('devContent').querySelectorAll('[data-del-family]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const code = btn.dataset.delFamily;
+        if (!confirm(`Delete family "${families[code]?.name}" (${code})? This cannot be undone.`)) return;
+        await db.ref(`families/${code}`).remove();
+        await db.ref(`familyMembers/${code}`).remove();
+        btn.closest('tr').remove();
+      });
+    });
+
+    $('devContent').querySelectorAll('[data-del-list]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.delList;
+        if (!confirm(`Delete list "${lists[id]?.name}"? This cannot be undone.`)) return;
+        await db.ref(`lists/${id}`).remove();
+        await db.ref(`gifts/${id}`).remove();
+        btn.closest('tr').remove();
+      });
+    });
+
+    $('devContent').querySelectorAll('[data-goto-family]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const code = btn.dataset.gotoFamily;
+        $('devConsoleDialog').close();
+        devActive = false;
+        await goToFamily(code);
+      });
+    });
+
+  } catch (err) {
+    $('devLoadingMsg').textContent = `Error loading data: ${err.message}`;
+    console.error('Dev console error:', err);
+  }
+}
+
 // ── EXPORT ────────────────────────────────────────────────────
 async function exportList() {
   if (!db || !currentList) return;
@@ -1434,5 +1650,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   bindHubScreen();
   bindProfileQuickAccess();
   bindWelcomeScreen();
+  bindDevConsole();
   await boot();
 });

@@ -219,6 +219,10 @@
         <div id="familyPageDescWrap" class="family-desc-strip hidden">
           <p id="familyPageDesc"></p>
         </div>
+        <div class="family-members-strip">
+          <p class="section-label">Members</p>
+          <div id="familyMembersList" class="family-members-list"></div>
+        </div>
 
         <div id="familyListCards" class="list-cards-grid"></div>
       </section>
@@ -513,6 +517,33 @@
             <button class="primary-button" type="submit">Save changes</button>
           </div>
         </form>
+      </dialog>
+
+      <!-- Dev auth dialog -->
+      <dialog id="devAuthDialog" class="modal">
+        <h3>Dev console</h3>
+        <p>Sign in with your developer account to continue.</p>
+        <form id="devAuthForm" class="auth-form">
+          <label>Email<input id="devAuthEmail" type="email" autocomplete="off" required></label>
+          <label>Password<input id="devAuthPassword" type="password" autocomplete="off" required></label>
+          <p id="devAuthMessage" class="message"></p>
+          <div class="modal-actions">
+            <button class="ghost-button" type="button" onclick="this.closest('dialog').close()">Cancel</button>
+            <button class="primary-button" type="submit">Sign in</button>
+          </div>
+        </form>
+      </dialog>
+
+      <!-- Dev console dialog -->
+      <dialog id="devConsoleDialog" class="modal dev-console-modal">
+        <div class="dev-console-header">
+          <div>
+            <h3>Dev console</h3>
+            <p id="devLoadingMsg" class="muted-note"></p>
+          </div>
+          <button id="devCloseBtn" class="ghost-button" type="button">Close</button>
+        </div>
+        <div id="devContent" class="dev-content"></div>
       </dialog>
 
     </main>

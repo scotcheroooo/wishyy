@@ -35,6 +35,10 @@
       ".read": true,
       ".write": true,
       ".indexOn": ["pinEncoded"]
+    },
+    "devConfig": {
+      ".read": "auth != null",
+      ".write": false
     }
   }
 }
