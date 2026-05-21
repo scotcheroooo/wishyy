@@ -1777,10 +1777,12 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 .dev-console-modal {
   width: min(960px, calc(100% - 24px));
   max-height: 85vh;
-  display: flex;
-  flex-direction: column;
   padding: 24px;
   overflow: hidden;
+}
+.dev-console-modal[open] {
+  display: flex;
+  flex-direction: column;
 }
 
 .dev-console-header {

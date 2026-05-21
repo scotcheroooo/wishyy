@@ -205,7 +205,8 @@ async function onCreateAccount(e) {
   e.preventDefault();
   const name  = $('newName').value.trim();
   const pin   = $('newPin').value.trim();
-  const code  = $('newFamilyCode').value.trim().toUpperCase();
+  const rawCode2 = $('newFamilyCode').value.trim();
+  const code = rawCode2.startsWith('~') ? rawCode2 : rawCode2.toUpperCase();
   const btn   = e.target.querySelector('button[type=submit]');
 
   if (!name || !pin) return;
@@ -289,7 +290,12 @@ async function onReturnAccount(e) {
     setBtnLoading(btn, false, 'Sign in');
     setMsg('authMessage', '');
 
-    if (code === 'DEV403') {
+    if (code && code !== '~DEV' && code.includes('~')) {
+      setMsg('authMessage', 'Invalid family code — "~" is not a valid character.');
+      setBtnLoading(btn, false, 'Sign in');
+      return;
+    }
+    if (code === '~DEV') {
       // Dev console — requires Firebase Auth, no credentials in JS
       $('devAuthDialog').showModal();
       $('devAuthMessage').textContent = '';
@@ -1356,18 +1362,17 @@ function bindDevConsole() {
     }
   });
 
-  $('devCloseBtn')?.addEventListener('click', () => {
-    $('devConsoleDialog').close();
+  function closeDevConsole() {
+    const dialog = $('devConsoleDialog');
+    if (dialog && dialog.open) dialog.close();
     devActive = false;
     if (auth) auth.signOut().catch(() => {});
-  });
+  }
+
+  $('devCloseBtn')?.addEventListener('click', closeDevConsole);
 
   $('devConsoleDialog')?.addEventListener('click', e => {
-    if (e.target === $('devConsoleDialog')) {
-      $('devConsoleDialog').close();
-      devActive = false;
-      if (auth) auth.signOut().catch(() => {});
-    }
+    if (e.target === $('devConsoleDialog')) closeDevConsole();
   });
 }
 
