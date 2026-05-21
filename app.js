@@ -725,6 +725,7 @@ function renderGifts() {
   if (sort === 'alpha')     entries.sort(([,a],[,b]) => (a.name||'').localeCompare(b.name||''));
   if (sort === 'newest')    entries.sort(([,a],[,b]) => (b.addedAt||0)-(a.addedAt||0));
   if (sort === 'wantHigh')  entries.sort(([,a],[,b]) => (b.want||0)-(a.want||0));
+  if (sort === 'wantLow')   entries.sort(([,a],[,b]) => (a.want||0)-(b.want||0));
 
   const container = $('giftList');
   container.innerHTML = '';
