@@ -1,32 +1,21 @@
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Lato:wght@400;700&family=Pacifico&family=DM+Serif+Display:ital@0;1&family=Nunito:wght@400;600;700;800&display=swap');
 
 :root {
-  --font-display: 'DM Serif Display', Georgia, serif;
-  --font-body: 'Nunito', sans-serif;
-  --ink: #2d1f2e; --muted: #7a5f7c; --paper: #fdf6fb; --panel: #ffffff;
-  --line: #e8d5ea; --accent: #9b4dca; --accent-strong: #7b2fa8;
-  --warning: #b84040; --soft: #f5eafa; --gold: #c4836a;
-  --panel-intro: #fceefa; --how-bg: rgba(255,255,255,0.65);
-  --how-border: rgba(232,213,234,0.8); --how-text: #3d2340;
-  --lead-color: #4a3050; --tab-bg: #faf4fd; --label-color: #3d2340;
-  --input-bg: #ffffff; --owner-row-bg: #fefaff;
-  --disclaimer-bg: #fff8ea; --disclaimer-border: #e8d0a9;
-  --interest-bg: #f5eafa; --interest-border: #d4aedf;
-  --sync-bg: #faf4fd; --preview-bg: #f8eeff;
-  --shadow: rgba(60,20,70,0.12); --modal-backdrop: rgba(45,31,46,0.5);
+  --font-display:'DM Serif Display',Georgia,serif;
+  --font-body:'Nunito',sans-serif;
+  --ink:#1a2e1a;--muted:#5a7a5a;--paper:#f4faf2;--panel:#fff;
+  --line:#c8dfc4;--accent:#2e7d32;--accent-strong:#1b5e20;
+  --warning: #b84040; --soft:#e8f5e9;--gold:#8d6e3a;
+  --panel-intro:#eaf6e5;--how-bg:rgba(255,255,255,0.7);
+  --how-border:rgba(200,223,196,0.9); --how-text:#1a3a1a;
+  --lead-color:#2a4a2a;--tab-bg:#f0f9ee;--label-color:#1a3a1a;
+  --input-bg:#fff;--owner-row-bg:#f5fcf3;
+  --disclaimer-bg:#faf6e8;--disclaimer-border:#d4c490;
+  --interest-bg:#e8f5e9;--interest-border:#a5c8a0;
+  --sync-bg:#f0f9ee;--preview-bg:#eaf6e5;
+  --shadow:rgba(20,50,20,0.12);
   color-scheme: light;
   font-family: var(--font-body);
-}
-
-[data-mode="light"][data-theme="forest"] {
-  --font-display:'DM Serif Display',Georgia,serif;--font-body:'Nunito',sans-serif;
-  --ink:#1a2e1a;--muted:#5a7a5a;--paper:#f4faf2;--panel:#fff;--line:#c8dfc4;
-  --accent:#2e7d32;--accent-strong:#1b5e20;--soft:#e8f5e9;--gold:#8d6e3a;
-  --panel-intro:#eaf6e5;--how-bg:rgba(255,255,255,0.7);--how-border:rgba(200,223,196,0.9);
-  --how-text:#1a3a1a;--lead-color:#2a4a2a;--tab-bg:#f0f9ee;--label-color:#1a3a1a;
-  --input-bg:#fff;--owner-row-bg:#f5fcf3;--disclaimer-bg:#faf6e8;--disclaimer-border:#d4c490;
-  --interest-bg:#e8f5e9;--interest-border:#a5c8a0;--sync-bg:#f0f9ee;--preview-bg:#eaf6e5;
-  --shadow:rgba(20,50,20,0.12);
 }
 
 [data-mode="dark"] {
