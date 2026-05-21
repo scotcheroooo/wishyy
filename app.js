@@ -660,7 +660,7 @@ function handleListClick(listId, list) {
 function openList(listId, list) {
   currentList = { id: listId, ...list };
   const rel = localStorage.getItem(`wishyy.rel.${listId}`);
-  const listFirstName = currentList.name.replace(/['']s.*$/i, '').split(' ')[0] || currentList.name;
+  const listFirstName = currentList.name.replace(/['']s\b.*$/i, '').split(' ')[0] || currentList.name;
   $('helloText').textContent = rel
     ? `${listFirstName}'s list — for ${currentUser.name} (${rel})`
     : `${listFirstName}'s list`;
@@ -860,6 +860,14 @@ function bindOwnerTools() {
     await db.ref(`lists/${currentList.id}`).update({ interestNote: $('ownerInterest').value });
   });
 
+  $('saveListNameButton')?.addEventListener('click', async () => {
+    if (!db || !currentList) return;
+    const newName = $('ownerListName').value.trim();
+    if (!newName) return;
+    await db.ref(`lists/${currentList.id}`).update({ name: newName });
+    currentList.name = newName;
+  });
+
   $('saveQuickNoteButton')?.addEventListener('click', async () => {
     if (!db || !currentList) return;
     await db.ref(`lists/${currentList.id}`).update({ quickNote: $('ownerQuickNote').value });
@@ -957,6 +965,7 @@ function showOwnerPanel() {
   if (db && currentList) {
     db.ref(`lists/${currentList.id}`).get().then(s => {
       const d = s.val() || {};
+      $('ownerListName').value  = d.name         || '';
       $('ownerInterest').value  = d.interestNote || '';
       $('ownerQuickNote').value = d.quickNote    || '';
     });
