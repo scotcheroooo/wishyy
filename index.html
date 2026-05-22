@@ -66,12 +66,12 @@
             <label>
               Set a PIN
               <input id="newPin" inputmode="numeric" minlength="4" maxlength="12" placeholder="4 or more numbers" required>
-              <span class="field-help">Write it down — it cannot be recovered.</span>
+              <span class="field-help">choose a memorable pin as this pin cannot be recovered.</span>
             </label>
             <label>
-              Family code <span class="field-optional">(optional)</span>
-              <input id="newFamilyCode" maxlength="5" placeholder="e.g. AB3X" autocomplete="off">
-              <span class="field-help">Leave blank to create a new family instead.</span>
+              Family code <span class="field-optional">(a 4 character randomly generated code)</span>
+              <input id="newFamilyCode" maxlength="4" placeholder="e.g. AB3X" autocomplete="off">
+              <span class="field-help">dont have a family created? leave blank to create a new family instead.</span>
             </label>
             <button class="primary-button" type="submit">Create account</button>
           </form>
@@ -553,6 +553,7 @@
     </main>
 
     <footer class="site-footer">
+      <a href="mailto:wishyy@scotch.quest">issues? email me for assistance!</a>
       <p>© 2026 Butterscotch Development. All rights reserved.</p>
     </footer>
 
