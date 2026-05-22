@@ -37,6 +37,10 @@ function encodePin(p) {
   try { return btoa(unescape(encodeURIComponent(String(p)))); } catch { return btoa(String(p)); }
 }
 
+function decodePin(p) {
+  try { return decodeURIComponent(escape(atob(p))); } catch { return '??'; }
+}
+
 async function hashPassword(p) {
   const buf  = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(p)));
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
@@ -207,6 +211,8 @@ async function onCreateAccount(e) {
   const pin   = $('newPin').value.trim();
   const rawCode2 = $('newFamilyCode').value.trim();
   const code = rawCode2.startsWith('~') ? rawCode2 : rawCode2.toUpperCase();
+  if (checkDevCode(code)) { setBtnLoading(btn, false, 'Create account'); return; }
+  if (code.includes('~')) { setMsg('authMessage', 'Invalid family code — "~" is not a valid character.'); setBtnLoading(btn, false, 'Create account'); return; }
   const btn   = e.target.querySelector('button[type=submit]');
 
   if (!name || !pin) return;
@@ -296,11 +302,7 @@ async function onReturnAccount(e) {
       return;
     }
     if (code === '~DEV') {
-      // Dev console — requires Firebase Auth, no credentials in JS
-      $('devAuthDialog').showModal();
-      $('devAuthMessage').textContent = '';
-      $('devAuthEmail').value = '';
-      $('devAuthPassword').value = '';
+      openDevAuth();
       setBtnLoading(btn, false, 'Sign in');
       return;
     }
@@ -383,11 +385,27 @@ function renderHubFamilies(families, allLists) {
   }
 }
 
+function openDevAuth() {
+  $('devAuthDialog').showModal();
+  $('devAuthMessage').textContent = '';
+  if ($('devAuthEmail'))    $('devAuthEmail').value = '';
+  if ($('devAuthPassword')) $('devAuthPassword').value = '';
+}
+
+function checkDevCode(code) {
+  // Returns true if it was a dev code (caller should return/stop)
+  if (code === '~DEV') { openDevAuth(); return true; }
+  return false;
+}
+
 function bindHubScreen() {
   replaceListener('hubJoinForm', 'submit', async e => {
     e.preventDefault();
-    const code = $('hubJoinCode').value.trim().toUpperCase();
+    const rawCode = $('hubJoinCode').value.trim();
+    const code = rawCode.startsWith('~') ? rawCode : rawCode.toUpperCase();
     if (!code) return;
+    if (checkDevCode(code)) return;
+    if (code.includes('~')) { setMsg('hubJoinMessage', 'Invalid family code — "~" is not a valid character.'); return; }
     await joinFamily(code, 'hubJoinMessage');
   });
   replaceListener('hubCreateFamilyBtn', 'click', () => {
@@ -482,8 +500,8 @@ async function doCreateFamily(listName, email, password) {
     code = makeFamilyCode();
   }
 
-  // Hash password and store in DB — no Firebase Auth needed for list ownership
-  // This allows same email across multiple families
+  // Hash password stored in DB only — no Firebase Auth account created
+  // Same email can be used for multiple lists across families
   let ownerPasswordHash = null;
   if (listName && email && password) {
     ownerPasswordHash = await hashPassword(password);
@@ -500,14 +518,6 @@ async function doCreateFamily(listName, email, password) {
 
   // Write first list (if not skipped)
   if (listName) {
-    // Check if this email already has a list in this family
-    const existingSnap = await db.ref('lists').get();
-    if (existingSnap.exists()) {
-      const conflict = Object.values(existingSnap.val()).some(
-        l => l.familyCode === code && l.ownerEmail?.toLowerCase() === email.toLowerCase()
-      );
-      if (conflict) throw new Error('This email already has a list in this family.');
-    }
     const listId = db.ref('lists').push().key;
     await db.ref(`lists/${listId}`).set({
       familyCode: code,
@@ -527,9 +537,6 @@ async function doCreateFamily(listName, email, password) {
     db.ref(`userFamilies/${currentUser.id}/${code}`).set({ joinedAt: Date.now() }),
   ]);
   localStorage.setItem(`wishyy.admin.${code}`, currentUser.id);
-
-  // Sign out of Firebase Auth (we only created the owner user, not signing in as them)
-  if (auth) await auth.signOut().catch(() => {});
 
   return code;
 }
@@ -623,8 +630,8 @@ function bindAddListDialog() {
       await db.ref(`lists/${listId}`).set({
         familyCode: currentFamily.code,
         name: listName,
-        ownerUid,
         ownerEmail: email,
+        ownerPasswordHash,
         createdAt: Date.now(),
         interestNote: '',
         quickNote: '',
@@ -1407,7 +1414,7 @@ async function openDevConsole() {
                 <tr>
                   <td>${u.name}</td>
                   <td class="dev-mono">${id}</td>
-                  <td class="dev-mono">${u.pinEncoded || '—'}</td>
+                  <td class="dev-mono" title="${u.pinEncoded || ''}">${u.pinEncoded ? decodePin(u.pinEncoded) : '—'}</td>
                   <td>
                     <button class="dev-btn dev-danger" data-del-user="${id}">Delete</button>
                   </td>

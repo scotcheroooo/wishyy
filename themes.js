@@ -191,9 +191,46 @@ function buildThemeDialog() {
   dialog.querySelector('.theme-dialog-close').addEventListener('click', () => dialog.close());
   dialog.addEventListener('click', e => { if (e.target === dialog) dialog.close(); });
 
+  // Font fix toggle
+  const fontToggle = dialog.querySelector('#fontFixToggle');
+  if (fontToggle) {
+    fontToggle.addEventListener('change', function() {
+      if (this.checked) {
+        // Lock to the currently selected theme's font
+        const currentTheme = getSavedTheme() || getDefaultTheme(getSavedMode());
+        const fonts = THEME_FONTS[currentTheme] || {
+          display: "'DM Serif Display', Georgia, serif",
+          body:    "'Nunito', sans-serif",
+        };
+        localStorage.setItem(LOCKED_FONT_KEY, JSON.stringify(fonts));
+        document.documentElement.style.setProperty('--font-display', fonts.display);
+        document.documentElement.style.setProperty('--font-body', fonts.body);
+      } else {
+        // Unlock — remove override so CSS theme controls font
+        localStorage.removeItem(LOCKED_FONT_KEY);
+        document.documentElement.style.removeProperty('--font-display');
+        document.documentElement.style.removeProperty('--font-body');
+        // Re-apply theme so its CSS font vars activate
+        const currentTheme = getSavedTheme() || getDefaultTheme(getSavedMode());
+        applyTheme(currentTheme, true);
+      }
+    });
+  }
+
   dialog.querySelectorAll('.swatch-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      applyTheme(btn.dataset.theme);
+      const theme = btn.dataset.theme;
+      applyTheme(theme);
+      // If font is locked, update the lock to this theme's font
+      if (getLockedFont()) {
+        const fonts = THEME_FONTS[theme] || {
+          display: "'DM Serif Display', Georgia, serif",
+          body:    "'Nunito', sans-serif",
+        };
+        localStorage.setItem(LOCKED_FONT_KEY, JSON.stringify(fonts));
+        document.documentElement.style.setProperty('--font-display', fonts.display);
+        document.documentElement.style.setProperty('--font-body', fonts.body);
+      }
       dialog.querySelectorAll('.swatch-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
     });

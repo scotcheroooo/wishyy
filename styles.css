@@ -27,6 +27,8 @@
   --input-bg:#0e1a0e;--owner-row-bg:#131c13;--disclaimer-bg:#1a1405;--disclaimer-border:#3a2e10;
   --interest-bg:#0f2a0f;--interest-border:#2a5a2a;--sync-bg:#162016;--preview-bg:#0f200f;
   --shadow:rgba(0,0,0,0.5);
+  --modal-backdrop: rgba(0,0,0,0.72);
+  color-scheme: dark;
 }
 
 [data-mode="light"][data-theme="forest"] {
@@ -1004,7 +1006,21 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 
 .modal { width: min(620px, calc(100% - 32px)); padding: 24px; }
 .modal::backdrop { background: var(--modal-backdrop); }
+.modal h3, .modal h4, .modal p,
+.theme-dialog h3, .dev-console-modal h3, .dev-console-modal h4,
+.dev-console-modal td, .dev-console-modal th,
+.dev-table td, .dev-table th {
+  color: var(--ink);
+}
+.dev-table th { color: var(--muted); }
 .modal p { color: var(--muted); }
+.modal h3, .modal h4,
+.dev-console-header h3,
+.theme-dialog-header h3,
+.owner-header h3, .owner-header h4,
+dialog h3, dialog h4 {
+  color: var(--ink);
+}
 .modal-actions { display: flex; justify-content: end; gap: 10px; margin-top: 16px; }
 .form-actions, .owner-row-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
 .owner-modal { width: min(820px, calc(100% - 32px)); }
