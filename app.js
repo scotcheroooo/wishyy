@@ -620,12 +620,6 @@ function bindAddListDialog() {
     msg.textContent = 'Creating list...';
 
     try {
-      let ownerUid = null;
-      if (auth) {
-        const cred = await auth.createUserWithEmailAndPassword(email, password);
-        ownerUid = cred.user.uid;
-      }
-
       const listId = db.ref('lists').push().key;
       await db.ref(`lists/${listId}`).set({
         familyCode: currentFamily.code,

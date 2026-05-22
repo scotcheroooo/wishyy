@@ -124,8 +124,8 @@ function getLockedFont() {
   try { return JSON.parse(localStorage.getItem(LOCKED_FONT_KEY)); } catch { return null; }
 }
 
-function applyTheme(theme, skipFontSave) {
-  // Apply the visual theme (colours)
+function applyTheme(theme, skipSave) {
+  // Apply colours
   const defaultThemes = ['forest', 'darkforest'];
   if (theme && !defaultThemes.includes(theme)) {
     document.documentElement.setAttribute('data-theme', theme);
@@ -133,19 +133,21 @@ function applyTheme(theme, skipFontSave) {
     document.documentElement.removeAttribute('data-theme');
   }
 
-  // Font handling
+  // Apply fonts — locked overrides CSS
+  enforceFontLock();
+
+  if (!skipSave) localStorage.setItem(THEME_KEY, theme);
+}
+
+function enforceFontLock() {
   const locked = getLockedFont();
   if (locked) {
-    // Fixed to the font that was active when user locked it
     document.documentElement.style.setProperty('--font-display', locked.display);
     document.documentElement.style.setProperty('--font-body', locked.body);
   } else {
-    // Let the theme's CSS control fonts
     document.documentElement.style.removeProperty('--font-display');
     document.documentElement.style.removeProperty('--font-body');
   }
-
-  if (!skipFontSave) localStorage.setItem(THEME_KEY, theme);
 }
 
 function buildThemeDialog() {
@@ -192,28 +194,23 @@ function buildThemeDialog() {
   dialog.addEventListener('click', e => { if (e.target === dialog) dialog.close(); });
 
   // Font fix toggle
-  const fontToggle = dialog.querySelector('#fontFixToggle');
-  if (fontToggle) {
-    fontToggle.addEventListener('change', function() {
+  const fontToggleEl = dialog.querySelector('#fontFixToggle');
+  if (fontToggleEl) {
+    fontToggleEl.addEventListener('change', function() {
+      const activeTheme = getSavedTheme() || getDefaultTheme(getSavedMode());
       if (this.checked) {
-        // Lock to the currently selected theme's font
-        const currentTheme = getSavedTheme() || getDefaultTheme(getSavedMode());
-        const fonts = THEME_FONTS[currentTheme] || {
+        // Snap lock to currently selected theme's font
+        const fonts = THEME_FONTS[activeTheme] || {
           display: "'DM Serif Display', Georgia, serif",
           body:    "'Nunito', sans-serif",
         };
         localStorage.setItem(LOCKED_FONT_KEY, JSON.stringify(fonts));
-        document.documentElement.style.setProperty('--font-display', fonts.display);
-        document.documentElement.style.setProperty('--font-body', fonts.body);
       } else {
-        // Unlock — remove override so CSS theme controls font
+        // Remove lock entirely
         localStorage.removeItem(LOCKED_FONT_KEY);
-        document.documentElement.style.removeProperty('--font-display');
-        document.documentElement.style.removeProperty('--font-body');
-        // Re-apply theme so its CSS font vars activate
-        const currentTheme = getSavedTheme() || getDefaultTheme(getSavedMode());
-        applyTheme(currentTheme, true);
       }
+      // Always enforce immediately
+      enforceFontLock();
     });
   }
 
@@ -221,15 +218,14 @@ function buildThemeDialog() {
     btn.addEventListener('click', () => {
       const theme = btn.dataset.theme;
       applyTheme(theme);
-      // If font is locked, update the lock to this theme's font
+      // If font is locked, update lock to match the newly picked theme
       if (getLockedFont()) {
         const fonts = THEME_FONTS[theme] || {
           display: "'DM Serif Display', Georgia, serif",
           body:    "'Nunito', sans-serif",
         };
         localStorage.setItem(LOCKED_FONT_KEY, JSON.stringify(fonts));
-        document.documentElement.style.setProperty('--font-display', fonts.display);
-        document.documentElement.style.setProperty('--font-body', fonts.body);
+        enforceFontLock();
       }
       dialog.querySelectorAll('.swatch-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
@@ -251,6 +247,7 @@ function initThemes() {
 
   applyMode(mode);
   applyTheme(theme);
+  enforceFontLock();
 
   // Font lock toggle now lives inside the theme dialog — bound in buildThemeDialog()
 
