@@ -48,7 +48,7 @@
    --how-text: #3d2340;--lead-color: #4a3050; --tab-bg: #faf4fd; --label-color: #3d2340;
    --input-bg: #ffffff; --owner-row-bg: #fefaff;--disclaimer-bg: #fff8ea; --disclaimer-border: #e8d0a9;
    --interest-bg: #f5eafa; --interest-border: #d4aedf;--sync-bg: #faf4fd; --preview-bg: #f8eeff;
-   --shadow: rgba(60,20,70,0.12); --modal-backdrop: rgba(45,31,46,0.5);
+   --shadow: rgba(60,20,70,0.12); --modal-backdrop: rgba(0,0,0,0.45);
 }
 [data-mode="light"][data-theme="rosegold"] {
   --font-display:'Pacifico',cursive;--font-body:'Nunito',sans-serif;
@@ -326,7 +326,7 @@
   --disclaimer-bg: #2a1f0e; --disclaimer-border: #5c4520;
   --interest-bg: #1e1030; --interest-border: #5a3070;
   --sync-bg: #251429; --preview-bg: #2a1535;
-  --shadow: rgba(0,0,0,0.4); --modal-backdrop: rgba(0,0,0,0.7);
+  --shadow: rgba(0,0,0,0.4); --modal-backdrop: rgba(0,0,0,0.72);
   color-scheme: dark;
 }
 [data-mode="dark"][data-theme="velvet"] {
